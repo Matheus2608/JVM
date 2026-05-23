@@ -18,7 +18,7 @@ make
 ```bash
 make run ARGS="exemplos/Hello.class"
 # ou diretamente
-./bin/leitor-exibidor Hello.class
+./bin/leitor-exibidor exemplos/Hello.class
 ```
 
 Testes

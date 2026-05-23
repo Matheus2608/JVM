@@ -51,9 +51,11 @@ run: all
 	@echo "Executando $(EXECUTABLE)..."
 	@./$(EXECUTABLE) $(ARGS)
 
-# Compila e executa testes em tests/
-$(BIN_DIR)/tests/%: tests/%.cpp | $(BIN_DIR)/tests
-	$(CXX) $(CXXFLAGS) $< -I. -o $@
+# Compila e executa testes em tests/ (linka os objetos do projeto, exceto main.o)
+TEST_OBJECTS = $(filter-out $(OBJ_DIR)/main.o, $(OBJECTS))
+
+$(BIN_DIR)/tests/%: tests/%.cpp $(TEST_OBJECTS) | $(BIN_DIR)/tests
+	$(CXX) $(CXXFLAGS) $< $(TEST_OBJECTS) -I. -o $@
 
 test: all $(TEST_BINS)
 	@for t in $(TEST_BINS); do \

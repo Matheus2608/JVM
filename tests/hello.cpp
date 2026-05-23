@@ -1,19 +1,20 @@
-// deve testar se o leitor e exibidor estão funcionando corretamente, ou seja, se eles conseguem ler e exibir as informações do arquivo .class corretamente
-// do arquivo Hello.class
+// testa se o parser consegue ler corretamente as informações do arquivo Hello.class
 
 #include <iostream>
 #include <cassert>
-#include "../leitor.hpp"
+#include "../parser.hpp"
 
 int main() {
-    Leitor leitor("../exemplos/Hello.class");
-    leitor.read();
-    class_info info = leitor.getClassInfo();
-
+    Parser parser("exemplos/Hello.class");
+    class_info info = parser.parse();
 
     assert(info.magic_number == 0xCAFEBABE);
     assert(info.minor_version == 0);
-    assert(info.major_version == 65);
-    assert(info.constant_pool_count == 59);
+    assert(info.major_version == 52);
+    assert(info.constant_pool_count == 55);
+    assert(info.fields_count == 2);
+    assert(info.methods_count == 3);
+
+    std::cout << "Todos os testes passaram." << std::endl;
     return 0;
 }

@@ -7,7 +7,11 @@ using std::size_t;
 
 using namespace std;
 
-Leitor::Leitor(const string &filename) : filename(filename), file(filename, ios::binary) {}
+Leitor::Leitor(const string &filename) : filename(filename), file(filename, ios::binary) {
+    if (!file.is_open()) {
+        throw std::runtime_error("Leitor: não foi possível abrir o arquivo \"" + filename + "\"");
+    }
+}
 
 Leitor::~Leitor() = default;
 
