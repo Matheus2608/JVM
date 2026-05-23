@@ -590,24 +590,24 @@ void Exibidor::display()
     cout << "------------------------------------------------------" << endl;
     cout << " Informações Gerais" << endl;
     cout << "------------------------------------------------------" << endl;
-    cout << "Magic Number: 0x" << hex << classInfo.magic_number << dec << endl;
-    cout << "Minor Version: " << classInfo.minor_version << endl;
-    cout << "Major Version: " << classInfo.major_version << endl;
-    cout << "Access Flags: 0x" << hex << classInfo.access_flags << dec << endl;
-    cout << "This Class Index: " << classInfo.this_class << endl;
-    cout << "Super Class Index: " << classInfo.super_class << endl;
-    cout << "Interfaces Count: " << classInfo.interfaces_count << endl;
-    cout << "Fields Count: " << classInfo.fields_count << endl;
-    cout << "Constant Pool Count: " << classInfo.constant_pool_count << endl;
-    cout << "Attributes Count: " << classInfo.attributes_count << endl;
-    cout << "Methods Count: " << classInfo.methods_count << endl;
-    cout << "  This Class : " << classNameFromConstantPool(classInfo, classInfo.this_class) << "\n";
-    cout << "  Super Class: ";
+    cout << "Magic Number    : 0x" << hex << classInfo.magic_number << dec << "\n";
+    cout << "Minor Version   : " << classInfo.minor_version << "\n";
+    cout << "Major Version   : " << classInfo.major_version << "\n";
+    cout << "Access Flags    : 0x" << hex << classInfo.access_flags << dec
+         << "  [" << getAccessFlagsString(classInfo.access_flags, FlagsContext::CLASS) << "]\n";
+    cout << "This Class      : #" << classInfo.this_class
+         << "  // " << classNameFromConstantPool(classInfo, classInfo.this_class) << "\n";
+    cout << "Super Class     : #" << classInfo.super_class << "  // ";
     if (classInfo.super_class != 0)
         cout << classNameFromConstantPool(classInfo, classInfo.super_class);
     else
         cout << "(nenhuma)";
     cout << "\n";
+    cout << "Interfaces Count: " << classInfo.interfaces_count << "\n";
+    cout << "Fields Count    : " << classInfo.fields_count << "\n";
+    cout << "Methods Count   : " << classInfo.methods_count << "\n";
+    cout << "Constant Pool   : " << classInfo.constant_pool_count << " entradas\n";
+    cout << "Attributes Count: " << classInfo.attributes_count << "\n";
     cout << "------------------------------------------------" << endl;
     constantPoolDisplay();
 
@@ -743,7 +743,7 @@ void Exibidor::fieldsDisplay()
     for (u2 i = 0; i < classInfo.fields_count; ++i) {
         const field_info &field = classInfo.fields.at(i);
         cout << "  [" << i + 1 << "] "
-             << getAccessFlagsString(field.access_flags) << " "
+             << getAccessFlagsString(field.access_flags, FlagsContext::FIELD) << " "
              << formatFieldType(utf8FromConstantPool(classInfo, field.descriptor_index)) << " "
              << utf8FromConstantPool(classInfo, field.name_index) << "\n";
 
@@ -785,7 +785,7 @@ void Exibidor::methodsDisplay()
         } else {
             if (methodName == "<init>")
                 methodName = classNameFromConstantPool(classInfo, classInfo.this_class);
-            cout << getAccessFlagsString(method.access_flags) << " " << signature.first
+            cout << getAccessFlagsString(method.access_flags, FlagsContext::METHOD) << " " << signature.first
                  << " " << methodName << "(" << signature.second << ")";
         }
         cout << "\n";
@@ -842,7 +842,7 @@ void Exibidor::attributesDisplay()
                 if (inner != 0) cout << cpEntryComment(classInfo, inner);
                 if (outer != 0) cout << " em " << cpEntryComment(classInfo, outer);
                 if (iname != 0) cout << " como " << utf8FromConstantPool(classInfo, iname);
-                cout << "  [" << getAccessFlagsString(flags) << "]";
+                cout << "  [" << getAccessFlagsString(flags, FlagsContext::CLASS) << "]";
             }
         } else if (name == "EnclosingMethod") {
             u2 class_idx  = readU2(data, 0);

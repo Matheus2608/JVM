@@ -11,8 +11,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    Exibidor exibidor(argv[1]);
-    exibidor.display();
+    try {
+        Exibidor exibidor(argv[1]);
+        exibidor.display();
+    } catch (const std::exception &e) {
+        cerr << "Erro: " << e.what() << endl;
+        return 1;
+    }
 
     return 0;
 }

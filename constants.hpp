@@ -47,19 +47,35 @@ inline bool hasAccessFlag(u2 flags, AccessFlags flag) {
     return (flags & static_cast<u2>(flag)) != 0;
 }
 
+// Contexto para interpretar flags dependentes de posição (bit 0x0020)
+enum class FlagsContext { CLASS, METHOD, FIELD };
+
 // Converte access flags para string legível
-inline std::string getAccessFlagsString(u2 flags) {
+inline std::string getAccessFlagsString(u2 flags, FlagsContext ctx = FlagsContext::CLASS) {
     std::string result;
-    
+
     if (hasAccessFlag(flags, AccessFlags::ACC_PUBLIC))    result += "public ";
     if (hasAccessFlag(flags, AccessFlags::ACC_PRIVATE))   result += "private ";
     if (hasAccessFlag(flags, AccessFlags::ACC_PROTECTED)) result += "protected ";
     if (hasAccessFlag(flags, AccessFlags::ACC_STATIC))    result += "static ";
     if (hasAccessFlag(flags, AccessFlags::ACC_FINAL))     result += "final ";
-    if (hasAccessFlag(flags, AccessFlags::ACC_SUPER))     result += "super ";
-    if (hasAccessFlag(flags, AccessFlags::ACC_SYNCHRONIZED)) result += "synchronized ";
-    if (hasAccessFlag(flags, AccessFlags::ACC_BRIDGE))    result += "bridge ";
-    if (hasAccessFlag(flags, AccessFlags::ACC_VARARGS))   result += "varargs ";
+
+    // 0x0020: ACC_SUPER (classe) ou ACC_SYNCHRONIZED (método)
+    if (flags & 0x0020) {
+        if (ctx == FlagsContext::METHOD) result += "synchronized ";
+        else                             result += "super ";
+    }
+    // 0x0040: ACC_VOLATILE (campo) ou ACC_BRIDGE (método)
+    if (flags & 0x0040) {
+        if (ctx == FlagsContext::FIELD)  result += "volatile ";
+        else                             result += "bridge ";
+    }
+    // 0x0080: ACC_TRANSIENT (campo) ou ACC_VARARGS (método)
+    if (flags & 0x0080) {
+        if (ctx == FlagsContext::FIELD)  result += "transient ";
+        else                             result += "varargs ";
+    }
+
     if (hasAccessFlag(flags, AccessFlags::ACC_NATIVE))    result += "native ";
     if (hasAccessFlag(flags, AccessFlags::ACC_INTERFACE)) result += "interface ";
     if (hasAccessFlag(flags, AccessFlags::ACC_ABSTRACT))  result += "abstract ";
@@ -67,16 +83,10 @@ inline std::string getAccessFlagsString(u2 flags) {
     if (hasAccessFlag(flags, AccessFlags::ACC_SYNTHETIC)) result += "synthetic ";
     if (hasAccessFlag(flags, AccessFlags::ACC_ANNOTATION))result += "annotation ";
     if (hasAccessFlag(flags, AccessFlags::ACC_ENUM))      result += "enum ";
-    
-    // Remove trailing space
-    if (!result.empty()) {
-        result.pop_back();
-    }
 
-    if (result.empty()) {
-        return "package-private"; // Sem flags significa package-private
-    }
-    
+    if (!result.empty()) result.pop_back(); // remove espaço final
+
+    if (result.empty()) return "package-private";
     return result;
 }
 
