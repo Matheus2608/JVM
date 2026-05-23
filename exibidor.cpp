@@ -601,10 +601,29 @@ void Exibidor::display()
     cout << "Constant Pool Count: " << classInfo.constant_pool_count << endl;
     cout << "Attributes Count: " << classInfo.attributes_count << endl;
     cout << "Methods Count: " << classInfo.methods_count << endl;
+    cout << "  This Class : " << classNameFromConstantPool(classInfo, classInfo.this_class) << "\n";
+    cout << "  Super Class: ";
+    if (classInfo.super_class != 0)
+        cout << classNameFromConstantPool(classInfo, classInfo.super_class);
+    else
+        cout << "(nenhuma)";
+    cout << "\n";
     cout << "------------------------------------------------" << endl;
     constantPoolDisplay();
+
+    // Interfaces
+    if (classInfo.interfaces_count > 0) {
+        cout << "------------------------------------------------------" << endl;
+        cout << " Interfaces (" << classInfo.interfaces_count << ")" << endl;
+        cout << "------------------------------------------------------" << endl;
+        for (u2 i = 0; i < classInfo.interfaces_count; ++i)
+            cout << "  [" << i + 1 << "] "
+                 << classNameFromConstantPool(classInfo, classInfo.interfaces[i]) << "\n";
+    }
+
     methodsDisplay();
     fieldsDisplay();
+    attributesDisplay();
 }
 
 void Exibidor::constantPoolDisplay()
@@ -717,18 +736,33 @@ void Exibidor::constantPoolDisplay()
 
 void Exibidor::fieldsDisplay()
 {
-    cout << "Campos:" << endl;
-    for (u2 i = 0; i < classInfo.fields_count; ++i)
-    {
-        field_info field = classInfo.fields.at(i);
-        cout << getAccessFlagsString(field.access_flags) << " " << formatFieldType(utf8FromConstantPool(classInfo, field.descriptor_index)) << " "
-             << utf8FromConstantPool(classInfo, field.name_index) << endl;
-        // cout << "Field " << i + 1 << ":" << endl;
-        // cout << "  Access Flags: 0x" << hex << field.access_flags << dec << endl;
-        // cout << "  Acess flags string: " <<  << endl;
-        // cout << "  Name: " << utf8FromConstantPool(classInfo, field.name_index) << endl;
-        // cout << "  Descriptor: " << utf8FromConstantPool(classInfo, field.descriptor_index) << endl;
-        // cout << "  Attributes Count: " << field.attributes_count << endl;
+    cout << "------------------------------------------------------" << endl;
+    cout << " Campos (" << classInfo.fields_count << ")" << endl;
+    cout << "------------------------------------------------------" << endl;
+
+    for (u2 i = 0; i < classInfo.fields_count; ++i) {
+        const field_info &field = classInfo.fields.at(i);
+        cout << "  [" << i + 1 << "] "
+             << getAccessFlagsString(field.access_flags) << " "
+             << formatFieldType(utf8FromConstantPool(classInfo, field.descriptor_index)) << " "
+             << utf8FromConstantPool(classInfo, field.name_index) << "\n";
+
+        for (u2 j = 0; j < field.attributes_count; ++j) {
+            const attribute_info &attr = field.attributes[j];
+            string aname = utf8FromConstantPool(classInfo, attr.attribute_name_index);
+            if (aname == "ConstantValue") {
+                u2 idx = readU2(attr.info, 0);
+                cout << "      ConstantValue: #" << idx
+                     << "   // " << cpEntryComment(classInfo, idx) << "\n";
+            } else if (aname == "Signature") {
+                u2 idx = readU2(attr.info, 0);
+                cout << "      Signature: " << utf8FromConstantPool(classInfo, idx) << "\n";
+            } else if (aname == "Synthetic") {
+                cout << "      Synthetic\n";
+            } else if (aname == "Deprecated") {
+                cout << "      Deprecated\n";
+            }
+        }
     }
 }
 
@@ -776,5 +810,61 @@ std::pair<string, string> Exibidor::getMethodSignature(const method_info &method
 
 void Exibidor::attributesDisplay()
 {
-    // TODO
+    cout << "------------------------------------------------------" << endl;
+    cout << " Atributos da Classe (" << classInfo.attributes_count << ")" << endl;
+    cout << "------------------------------------------------------" << endl;
+
+    for (u2 i = 0; i < classInfo.attributes_count; ++i) {
+        const attribute_info &attr = classInfo.attributes[i];
+        string name = utf8FromConstantPool(classInfo, attr.attribute_name_index);
+        const auto &data = attr.info;
+
+        cout << "  [" << i + 1 << "] " << name;
+
+        if (name == "SourceFile") {
+            u2 idx = readU2(data, 0);
+            cout << ": " << utf8FromConstantPool(classInfo, idx);
+        } else if (name == "Signature") {
+            u2 idx = readU2(data, 0);
+            cout << ": " << utf8FromConstantPool(classInfo, idx);
+        } else if (name == "Deprecated" || name == "Synthetic") {
+            // sem dados
+        } else if (name == "InnerClasses") {
+            u2 count = readU2(data, 0);
+            cout << " (" << count << ")";
+            size_t pos = 2;
+            for (u2 j = 0; j < count; ++j) {
+                u2 inner = readU2(data, pos); pos += 2;
+                u2 outer = readU2(data, pos); pos += 2;
+                u2 iname = readU2(data, pos); pos += 2;
+                u2 flags = readU2(data, pos); pos += 2;
+                cout << "\n    ";
+                if (inner != 0) cout << cpEntryComment(classInfo, inner);
+                if (outer != 0) cout << " em " << cpEntryComment(classInfo, outer);
+                if (iname != 0) cout << " como " << utf8FromConstantPool(classInfo, iname);
+                cout << "  [" << getAccessFlagsString(flags) << "]";
+            }
+        } else if (name == "EnclosingMethod") {
+            u2 class_idx  = readU2(data, 0);
+            u2 method_idx = readU2(data, 2);
+            cout << ": " << cpEntryComment(classInfo, class_idx);
+            if (method_idx != 0) cout << "." << nameAndTypeStr(classInfo, method_idx);
+        } else if (name == "BootstrapMethods") {
+            u2 count = readU2(data, 0);
+            cout << " (" << count << ")";
+            size_t pos = 2;
+            for (u2 j = 0; j < count; ++j) {
+                u2 ref   = readU2(data, pos); pos += 2;
+                u2 nargs = readU2(data, pos); pos += 2;
+                cout << "\n    #" << ref << " args:";
+                for (u2 k = 0; k < nargs; ++k) {
+                    u2 arg = readU2(data, pos); pos += 2;
+                    cout << " #" << arg;
+                }
+            }
+        } else {
+            cout << " (" << attr.attribute_length << " bytes)";
+        }
+        cout << "\n";
+    }
 }
