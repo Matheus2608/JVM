@@ -3,15 +3,20 @@
 
 #include <vector>
 #include <cstdint>
+#include <stdexcept>
 #include "estrutura_dados.hpp"
 
 inline int16_t readS2(const std::vector<u1> &c, size_t i)
 {
+    if (c.size() < 2 || i > c.size() - 2)
+        throw std::runtime_error("bytecode: leitura fora dos limites (readS2)");
     return static_cast<int16_t>((static_cast<uint16_t>(c[i]) << 8) | c[i + 1]);
 }
 
 inline int32_t readS4(const std::vector<u1> &c, size_t i)
 {
+    if (c.size() < 4 || i > c.size() - 4)
+        throw std::runtime_error("bytecode: leitura fora dos limites (readS4)");
     return static_cast<int32_t>(
         (static_cast<uint32_t>(c[i])     << 24) |
         (static_cast<uint32_t>(c[i + 1]) << 16) |
@@ -21,6 +26,8 @@ inline int32_t readS4(const std::vector<u1> &c, size_t i)
 
 inline uint16_t readU2(const std::vector<u1> &c, size_t i)
 {
+    if (c.size() < 2 || i > c.size() - 2)
+        throw std::runtime_error("bytecode: leitura fora dos limites (readU2)");
     return static_cast<uint16_t>((static_cast<uint16_t>(c[i]) << 8) | c[i + 1]);
 }
 
