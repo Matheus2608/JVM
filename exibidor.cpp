@@ -776,6 +776,23 @@ void Exibidor::methodsDisplay()
                      << "  max_locals=" << ca.max_locals
                      << "  code_length=" << ca.code_length << "\n";
                 disassembleCode(ca.code, ca.code_length, classInfo);
+
+                if (ca.exception_table_length > 0) {
+                    cout << "      Exception table:\n";
+                    cout << "         from    to  target type\n";
+                    for (u2 k = 0; k < ca.exception_table_length; ++k) {
+                        const auto &exc = ca.exception_table[k];
+                        cout << "         " << setw(4) << exc.start_pc
+                             << "  " << setw(4) << exc.end_pc
+                             << "  " << setw(4) << exc.handler_pc << "   ";
+                        
+                        if (exc.catch_type == 0) {
+                            cout << "any\n"; // Se for 0, trata-se de um bloco finally (captura qualquer coisa)
+                        } else {
+                            cout << "Class " << classNameFromConstantPool(classInfo, exc.catch_type) << "\n";
+                        }
+                    }
+                }
             }
         }
     }
