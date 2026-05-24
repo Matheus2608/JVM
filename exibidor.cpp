@@ -770,8 +770,10 @@ void Exibidor::methodsDisplay()
         cout << "\n";
 
         for (u2 j = 0; j < method.attributes_count; ++j) {
-            if (method.attributes[j].code_data) {
-                const code_attribute &ca = *method.attributes[j].code_data;
+            const attribute_info &attr = method.attributes[j];
+            string attr_name = utf8FromConstantPool(classInfo, attr.attribute_name_index);
+            if (attr.code_data) {
+                const code_attribute &ca = *attr.code_data;
                 cout << "      max_stack=" << ca.max_stack
                      << "  max_locals=" << ca.max_locals
                      << "  code_length=" << ca.code_length << "\n";
@@ -798,18 +800,15 @@ void Exibidor::methodsDisplay()
                     for (u2 a = 0; a < ca.attributes_count; ++a) {
                         const attribute_info &inner_attr = ca.attributes[a];
                         string inner_attr_name = utf8FromConstantPool(classInfo, inner_attr.attribute_name_index);
-
-                        // O vetor 'info' armazena os bytes brutos do atributo
+                        
                         const vector<u1>& dados = inner_attr.info;
-
                         if (inner_attr_name == "LineNumberTable" && dados.size() >= 2) {
-                            // Os primeiros 2 bytes formam o tamanho da tabela
+                        
                             u2 lnt_length = (dados[0] << 8) | dados[1];
                             
                             cout << "      LineNumberTable:\n";
                             cout << "        Start PC      Line Number\n";
-                            
-                            // Cada entrada na tabela de linhas tem 4 bytes de tamanho
+                                                        
                             for (u2 l = 0; l < lnt_length; ++l) {
                                 u2 offset = 2 + (l * 4);
                                 if (offset + 3U < dados.size()) {
@@ -820,13 +819,12 @@ void Exibidor::methodsDisplay()
                             }
                         } 
                         else if (inner_attr_name == "LocalVariableTable" && dados.size() >= 2) {
-                            // Os primeiros 2 bytes formam o tamanho da tabela
+                            
                             u2 lvt_length = (dados[0] << 8) | dados[1];
                             
                             cout << "      LocalVariableTable:\n";
                             cout << "        Start  Length  Slot  Name            Signature\n";
-                            
-                            // Cada entrada na tabela de variáveis locais tem 10 bytes de tamanho
+                                                       
                             for (u2 l = 0; l < lvt_length; ++l) {
                                 u2 offset = 2 + (l * 10);
                                 if (offset + 9U < dados.size()) {
@@ -846,6 +844,34 @@ void Exibidor::methodsDisplay()
                         }
                     }
                 }
+            }
+            else if (attr_name == "Exceptions") {
+                const vector<u1>& dados = attr.info;
+                if (dados.size() >= 2) {
+                    u2 number_of_exceptions = (dados[0] << 8) | dados[1];
+                    cout << "      Exceptions:\n";
+                    for (u2 e = 0; e < number_of_exceptions; ++e) {
+                        u2 offset = 2 + (e * 2);
+                        if (offset + 1U < dados.size()) {
+                            // Pega o índice e busca a string da classe de erro no Constant Pool
+                            u2 exc_index = (dados[offset] << 8) | dados[offset + 1];
+                            cout << "        throws " << classNameFromConstantPool(classInfo, exc_index) << "\n";
+                        }
+                    }
+                }
+            }
+            else if (attr_name == "Signature") {
+                const vector<u1>& dados = attr.info;
+                if (dados.size() >= 2) {
+                    u2 sig_index = (dados[0] << 8) | dados[1];
+                    cout << "      Signature: " << utf8FromConstantPool(classInfo, sig_index) << "\n";
+                }
+            }
+            else if (attr_name == "Deprecated") {
+                cout << "      Deprecated: true\n";
+            }
+            else if (attr_name == "Synthetic") {
+                cout << "      Synthetic: true\n";
             }
         }
     }
