@@ -250,11 +250,21 @@ void disassembleCode(const std::vector<u1> &code, u4 code_length, const class_in
         case 0xAA: {
             size_t start = pc++;
             while (pc % 4 != 0) pc++;
+            // cabeçalho: default (4) + low (4) + high (4) = 12 bytes
+            requireBytes(pc, 12, code_length);
             int32_t def  = readS4(code, pc); pc += 4;
             int32_t low  = readS4(code, pc); pc += 4;
             int32_t high = readS4(code, pc); pc += 4;
+            if (high < low)
+                throw std::runtime_error("tableswitch: high < low (bytecode inválido)");
+            // A spec JVM não define limite explícito de entradas, mas 65536
+            // é um teto seguro: nenhum método válido excede 65535 bytes.
+            int64_t count = static_cast<int64_t>(high) - low + 1;
+            if (count > 65536)
+                throw std::runtime_error("tableswitch: número de entradas excede 65536");
+            requireBytes(pc, static_cast<size_t>(count) * 4, code_length);
             cout << "tableswitch " << low << " to " << high << "\n";
-            for (int32_t j = low; j <= high; j++) {
+            for (int64_t j = low; j <= high; j++) {
                 int32_t off = readS4(code, pc); pc += 4;
                 cout << "              " << j << ": " << static_cast<int64_t>(start) + off << "\n";
             }
@@ -265,8 +275,15 @@ void disassembleCode(const std::vector<u1> &code, u4 code_length, const class_in
         case 0xAB: {
             size_t start = pc++;
             while (pc % 4 != 0) pc++;
+            // cabeçalho: default (4) + npairs (4) = 8 bytes
+            requireBytes(pc, 8, code_length);
             int32_t def    = readS4(code, pc); pc += 4;
             int32_t npairs = readS4(code, pc); pc += 4;
+            if (npairs < 0)
+                throw std::runtime_error("lookupswitch: npairs negativo (bytecode inválido)");
+            if (npairs > 65536)
+                throw std::runtime_error("lookupswitch: número de pares excede 65536");
+            requireBytes(pc, static_cast<size_t>(npairs) * 8, code_length);
             cout << "lookupswitch " << npairs << " pairs\n";
             for (int32_t j = 0; j < npairs; j++) {
                 int32_t match = readS4(code, pc); pc += 4;
