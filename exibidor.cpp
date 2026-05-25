@@ -145,7 +145,16 @@ void Exibidor::constantPoolDisplay()
             cout << left << setw(19) << "MethodType"
                  << " #" << entry.container.MethodType.descriptor_index;
             break;
-        case CONSTANT_InvokeDynamic:
+        case CONSTANT_Module:
+            cout << left << setw(19) << "Module"
+                 << " #" << entry.container.Class.name_index;
+            break;
+        case CONSTANT_Package:
+            cout << left << setw(19) << "Package"
+                 << " #" << entry.container.Class.name_index;
+            break;
+        
+            case CONSTANT_InvokeDynamic:
             cout << left << setw(19) << "InvokeDynamic"
                  << " #" << entry.container.InvokeDynamic.bootstrap_method_attr_index
                  << ".#" << entry.container.InvokeDynamic.name_and_type_index;
@@ -394,6 +403,55 @@ void Exibidor::attributesDisplay()
                 for (u2 k = 0; k < nargs; ++k) {
                     u2 arg = readU2(data, pos); pos += 2;
                     cout << " #" << arg;
+                }
+            }
+
+        } 
+        else if (name == "RuntimeVisibleAnnotations" || name == "RuntimeInvisibleAnnotations") {
+            if (data.size() >= 2) {
+                u2 num_annotations = readU2(data, 0);
+                cout << " (" << num_annotations << " anotacao(oes))";
+                cout << "\n    Dados brutos (Hex): ";
+                for(size_t k = 2; k < data.size(); ++k) {
+                    cout << hex << uppercase << setfill('0') << setw(2) << static_cast<int>(data[k]) << " " << dec;
+                }
+            }
+        } 
+        else if (name == "NestHost") {
+            if (data.size() >= 2) {
+                u2 host_class_index = readU2(data, 0);
+                cout << ": #" << host_class_index << " // " << cpEntryComment(classInfo, host_class_index);
+            }
+        } 
+        else if (name == "NestMembers") {
+            if (data.size() >= 2) {
+                u2 number_of_classes = readU2(data, 0);
+                cout << " (" << number_of_classes << " membros)";
+                size_t pos = 2;
+                for (u2 j = 0; j < number_of_classes; ++j) {
+                    if (pos + 1 < data.size()) {
+                        u2 class_index = readU2(data, pos); pos += 2;
+                        cout << "\n    #" << class_index << " // " << cpEntryComment(classInfo, class_index);
+                    }
+                }
+            }
+        } 
+        else if (name == "Module") {
+            if (data.size() >= 6) {
+                u2 module_name_index = readU2(data, 0);
+                u2 module_flags = readU2(data, 2);
+                u2 module_version_index = readU2(data, 4);
+                cout << ":";
+                cout << "\n    Name   : #" << module_name_index << " // " << cpEntryComment(classInfo, module_name_index);
+                cout << "\n    Flags  : 0x" << hex << module_flags << dec;
+                cout << "\n    Version: #" << module_version_index;
+                if (module_version_index != 0) cout << " // " << cpEntryComment(classInfo, module_version_index);
+                
+                if (data.size() > 6) {
+                    cout << "\n    Dados complementares (Hex): ";
+                    for(size_t k = 6; k < data.size(); ++k) {
+                        cout << hex << uppercase << setfill('0') << setw(2) << static_cast<int>(data[k]) << " " << dec;
+                    }
                 }
             }
         } else {

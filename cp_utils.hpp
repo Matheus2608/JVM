@@ -48,6 +48,11 @@ inline std::string cpEntryComment(const class_info &info, u2 index)
     switch (entry.tag) {
     case CONSTANT_Class:
         return utf8FromConstantPool(info, entry.container.Class.name_index);
+        
+    case CONSTANT_Module:
+    case CONSTANT_Package:
+        return utf8FromConstantPool(info, entry.container.Class.name_index);
+    
     case CONSTANT_Fieldref:
     case CONSTANT_Methodref:
     case CONSTANT_InterfaceMethodref:
@@ -57,8 +62,35 @@ inline std::string cpEntryComment(const class_info &info, u2 index)
         return utf8FromConstantPool(info, entry.container.String.string_index);
     case CONSTANT_NameAndType:
         return nameAndTypeStr(info, index);
+        
     case CONSTANT_MethodType:
         return utf8FromConstantPool(info, entry.container.MethodType.descriptor_index);
+        
+    case CONSTANT_MethodHandle: {
+        u1 kind = entry.container.MethodHandle.reference_kind;
+        u2 ref_idx = entry.container.MethodHandle.reference_index;
+        std::string kind_str;
+        switch(kind) {
+            case 1: kind_str = "REF_getField"; break;
+            case 2: kind_str = "REF_getStatic"; break;
+            case 3: kind_str = "REF_putField"; break;
+            case 4: kind_str = "REF_putStatic"; break;
+            case 5: kind_str = "REF_invokeVirtual"; break;
+            case 6: kind_str = "REF_invokeStatic"; break;
+            case 7: kind_str = "REF_invokeSpecial"; break;
+            case 8: kind_str = "REF_newInvokeSpecial"; break;
+            case 9: kind_str = "REF_invokeInterface"; break;
+            default: kind_str = "REF_Unknown";
+        }
+        return kind_str + " -> " + cpEntryComment(info, ref_idx);
+    }
+    
+    case CONSTANT_InvokeDynamic: {
+        u2 bsm_idx = entry.container.InvokeDynamic.bootstrap_method_attr_index;
+        u2 nat_idx = entry.container.InvokeDynamic.name_and_type_index;
+        return "BootstrapMethod #" + std::to_string(bsm_idx) + " : " + nameAndTypeStr(info, nat_idx);
+    }
+
     case CONSTANT_Integer:
         return std::to_string(static_cast<int32_t>(entry.container.Integer.bytes));
     case CONSTANT_Float: {

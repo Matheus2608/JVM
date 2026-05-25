@@ -20,6 +20,8 @@
 #define CONSTANT_MethodHandle       15
 #define CONSTANT_MethodType         16
 #define CONSTANT_InvokeDynamic      18
+#define CONSTANT_Module             19
+#define CONSTANT_Package 20
 
 
 // Access Flags (podem ser combinadas com bitwise OR)

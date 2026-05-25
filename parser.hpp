@@ -1,5 +1,7 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
+#define CONSTANT_Module 19
+#define CONSTANT_Package 20
 
 #include "estrutura_dados.hpp"
 #include <string>

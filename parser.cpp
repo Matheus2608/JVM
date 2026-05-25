@@ -68,6 +68,10 @@ void Parser::parseConstantPool()
         case CONSTANT_Class:
             entry.container.Class.name_index = leitor.readu2();
             break;
+        case CONSTANT_Module:
+        case CONSTANT_Package:
+            entry.container.Class.name_index = leitor.readu2();
+            break;
         case CONSTANT_Fieldref:
         case CONSTANT_Methodref:
         case CONSTANT_InterfaceMethodref:
@@ -188,7 +192,7 @@ void Parser::parseMethods()
         method.attributes_count = leitor.readu2();
         method.attributes.resize(method.attributes_count);
 
-        for (u2 j = 0; j < method.attributes_count; ++j)
+        for (u2 j = 0; method.attributes_count > j; ++j)
         {
             attribute_info &attribute = method.attributes[j];
             attribute.attribute_name_index = leitor.readu2();
