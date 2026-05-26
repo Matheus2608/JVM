@@ -1,3 +1,11 @@
+/**
+ * @brief Definições de Tags da Constant Pool e Mapeamento de Modificadores (Access Flags).
+ * 
+ * Contém as constantes literais definidas pela especificação da JVM para 
+ * identificar o tipo de cada entrada na Constant Pool, além das máscaras 
+ * de bits (bitwise flags) usadas para descobrir se uma classe, campo ou método 
+ * é public, private, static, abstrato, etc.
+ */
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 

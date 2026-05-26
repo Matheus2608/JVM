@@ -1,3 +1,10 @@
+/**
+ * @brief Estruturas de dados (AST) que espelham o formato físico do arquivo .class.
+ * 
+ * Este arquivo funciona como o modelo de domínio do projeto. As structs aqui definidas
+ * mapeiam byte-a-byte a especificação oficial da Oracle para a JVM, permitindo carregar
+ * toda a classe em memória de forma tipada e estruturada.
+ */
 #ifndef ESTRUTURA_DADOS_HPP
 #define ESTRUTURA_DADOS_HPP
 
@@ -11,6 +18,10 @@ typedef uint16_t u2;
 typedef uint32_t u4;
 typedef uint64_t u8;
 
+/**
+ * @brief Representa uma entrada genérica na Pool de Constantes.
+ * Usa uma union (container) para economizar memória e mapear múltiplos tipos JVM baseando-se na tag.
+ */
 struct cp_info {
     u1 tag = 0;
     union {
@@ -72,6 +83,10 @@ struct method_info {
     std::vector<attribute_info> attributes;
 };
 
+/**
+ * @brief Nó raiz da estrutura do arquivo .class.
+ * Contém toda a hierarquia de dados extraída do binário.
+ */
 struct class_info {
     u4 magic_number = 0;
     u2 minor_version = 0;

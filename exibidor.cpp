@@ -58,6 +58,12 @@ void Exibidor::display()
     attributesDisplay();
 }
 
+/**
+ * @brief Itera sobre a Pool de Constantes imprimindo valores.
+ * 
+ * Lógica Crítica: As chamadas cpEntryComment() são essenciais aqui porque procuram 
+ * os índices de referência de forma recursiva e retornam o nome final real atrelado à constante.
+ */
 void Exibidor::constantPoolDisplay()
 {
     cout << "------------------------------------------------------" << endl;
@@ -112,6 +118,8 @@ void Exibidor::constantPoolDisplay()
             break;
         }
         case CONSTANT_Long: {
+            // Lógica JVM: Variáveis de 64 bits (Long e Double) ocupam dois slots consecutivos (High e Low bytes).
+            // Realizamos um Shift bit a bit (<< 32) no bloco alto para reconstruir o número matemático original.
             int64_t val = static_cast<int64_t>(
                 (static_cast<uint64_t>(entry.container.Long.high_bytes) << 32) |
                  entry.container.Long.low_bytes);
@@ -171,6 +179,12 @@ void Exibidor::constantPoolDisplay()
     }
 }
 
+/**
+ * @brief Exibe os campos (variáveis) da classe e seus atributos específicos.
+ * 
+ * Formata o tipo da variável, modificadores de acesso e processa atributos
+ * associados ao campo, como ConstantValue (para primitivos final) e Anotações.
+ */
 void Exibidor::fieldsDisplay()
 {
     cout << "------------------------------------------------------" << endl;
@@ -216,6 +230,14 @@ void Exibidor::fieldsDisplay()
         }
     }
 }
+
+/**
+ * @brief Exibe informações a nível de Método e processa seus atributos.
+ * 
+ * Dentro desta função ocorre a chamada disassembleCode(), que entra profundamente no 
+ * atributo 'Code' para traduzir o array de bytes em instruções assembly da JVM (Mnemônicos),
+ * além de exibir as Exception Tables e Line Number Tables relativas ao método em questão.
+ */
 void Exibidor::methodsDisplay()
 {
     cout << "------------------------------------------------------" << endl;
@@ -352,6 +374,13 @@ std::pair<string, string> Exibidor::getMethodSignature(const method_info &method
     return {formatMethodReturnType(descriptor), formatMethodParameters(descriptor)};
 }
 
+/**
+ * @brief Exibe os atributos em nível de Classe.
+ * 
+ * Processa metadados gerais que afetam a classe como um todo, tais como
+ * arquivo de origem (SourceFile), classes internas (InnerClasses) e 
+ * métodos de inicialização dinâmica (BootstrapMethods para invokedynamic).
+ */
 void Exibidor::attributesDisplay()
 {
     cout << "------------------------------------------------------" << endl;

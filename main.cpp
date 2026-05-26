@@ -4,6 +4,13 @@
 
 using namespace std;
 
+/**
+ * @brief Ponto de entrada principal do Leitor-Exibidor JVM.
+ * 
+ * Recebe o caminho de um arquivo .class via argumento de terminal, 
+ * inicializa o motor de exibição (que internamente chama o motor de Parsing) e 
+ * dispara o processo de formatação estruturada no terminal de forma segura (try-catch).
+ */
 int main(int argc, char* argv[]) {
 
     if (argc < 2) {

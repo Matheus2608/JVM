@@ -6,6 +6,15 @@
 #include <stdexcept>
 #include "estrutura_dados.hpp"
 
+/**
+ * @brief Utilitários para leitura segura do vetor de bytecodes (Code attribute).
+ * 
+ * Durante o disassemble, muitas instruções (como goto ou if_icmpeq) possuem offsets 
+ * de 2 ou 4 bytes acoplados logo após o opcode. Estas funções garantem a leitura 
+ * combinando esses bytes matematicamente (Big-Endian) e prevenindo falhas 
+ * de Out of Bounds caso o arquivo esteja mal-formado.
+ */
+
 inline int16_t readS2(const std::vector<u1> &c, size_t i)
 {
     if (c.size() < 2 || i > c.size() - 2)

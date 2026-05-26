@@ -4,6 +4,13 @@
 #include <string>
 #include <stdexcept>
 
+/**
+ * @brief Tradutor de Descritores de Tipo da JVM.
+ * 
+ * A JVM usa códigos compactos para tipos (ex: 'I' para int, 'Z' para boolean, 
+ * '[Ljava/lang/String;' para String[]). Esta função percorre essa string codificada 
+ * e a converte para a sintaxe real da linguagem Java legível para humanos.
+ */
 inline std::string parseTypeDescriptor(const std::string &descriptor, size_t &position)
 {
     size_t arrayDimensions = 0;
@@ -48,6 +55,12 @@ inline std::string parseTypeDescriptor(const std::string &descriptor, size_t &po
     return baseType;
 }
 
+/**
+ * @brief Extrai e formata os parâmetros de um método.
+ * 
+ * Isola tudo o que está dentro dos parênteses '( ... )' do descritor 
+ * e itera traduzindo tipo por tipo, separando-os por vírgula.
+ */
 inline std::string formatMethodParameters(const std::string &descriptor)
 {
     size_t openParen  = descriptor.find('(');
@@ -70,6 +83,11 @@ inline std::string formatMethodParameters(const std::string &descriptor)
     return result;
 }
 
+/**
+ * @brief Extrai e formata o tipo de retorno de um método.
+ * 
+ * Isola e traduz a parte do descritor que vem logo após o parêntese final ')'.
+ */
 inline std::string formatMethodReturnType(const std::string &descriptor)
 {
     size_t closeParen = descriptor.find(')');

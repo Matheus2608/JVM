@@ -8,6 +8,13 @@
 #include "constants.hpp"
 #include "bytecode_utils.hpp"
 
+/**
+ * @brief Extrator de Strings Utf8 puras da Constant Pool.
+ * 
+ * Verifica se o índice é válido e se a tag realmente aponta para um CONSTANT_Utf8,
+ * retornando a string C++ correspondente. Lança exceções caso o arquivo .class 
+ * tente referenciar índices inválidos.
+ */
 inline std::string utf8FromConstantPool(const class_info &info, u2 index)
 {
     if (index == 0 || index >= info.constant_pool.size())
@@ -20,6 +27,12 @@ inline std::string utf8FromConstantPool(const class_info &info, u2 index)
     return entry.utf8_str;
 }
 
+/**
+ * @brief Resolve o nome de uma Classe.
+ * 
+ * Um CONSTANT_Class não contém a string com o nome da classe; ele contém um índice 
+ * que aponta para um CONSTANT_Utf8. Esta função faz esse salto automático.
+ */
 inline std::string classNameFromConstantPool(const class_info &info, u2 index)
 {
     if (index == 0 || index >= info.constant_pool.size())
@@ -32,6 +45,12 @@ inline std::string classNameFromConstantPool(const class_info &info, u2 index)
     return utf8FromConstantPool(info, entry.container.Class.name_index);
 }
 
+/**
+ * @brief Resolve assinaturas de NameAndType.
+ * 
+ * Une o nome (ex: "println") e o descritor (ex: "(Ljava/lang/String;)V") separando-os
+ * por dois pontos, auxiliando na formatação final de métodos e campos.
+ */
 inline std::string nameAndTypeStr(const class_info &info, u2 index)
 {
     if (index == 0 || index >= info.constant_pool.size()) return "";
@@ -41,6 +60,13 @@ inline std::string nameAndTypeStr(const class_info &info, u2 index)
            utf8FromConstantPool(info, entry.container.NameAndType.descriptor_index);
 }
 
+/**
+ * @brief Função central de resolução recursiva da Constant Pool.
+ * 
+ * É o coração da formatação de referências. Dado qualquer índice, ela descobre seu tipo,
+ * segue a cadeia de ponteiros e retorna uma representação legível (comentário) 
+ * para ser exibida ao lado da constante bruta (ex: java/lang/Object.<init>:()V).
+ */
 inline std::string cpEntryComment(const class_info &info, u2 index)
 {
     if (index == 0 || index >= info.constant_pool.size()) return "";

@@ -7,7 +7,11 @@
 
 using namespace std;
 
-// Verifica que há pelo menos `n` bytes a partir de `pos` no vetor de código.
+/**
+ * @brief Valida os limites de leitura do vetor de bytecodes.
+ * Previne falhas de segmentação (Segfault) e Buffer Overflow caso o bytecode 
+ * tente instruir a leitura de argumentos que ultrapassem o tamanho do método.
+ */
 static void requireBytes(size_t pos, size_t n, size_t code_length)
 {
     if (n > code_length || pos > code_length - n)
@@ -15,6 +19,13 @@ static void requireBytes(size_t pos, size_t n, size_t code_length)
                                  + std::to_string(pos));
 }
 
+/**
+ * @brief O loop principal do interpretador de Bytecode (Disassembler).
+ * 
+ * Percorre o array de bytes instrução por instrução, mantendo um Program Counter (pc).
+ * Decodifica o opcode (switch principal), consome a quantidade correta de operandos e 
+ * formata o assembly do Java com as devidas referências e saltos calculados matematicamente.
+ */
 void disassembleCode(const std::vector<u1> &code, u4 code_length, const class_info &cls)
 {
     size_t pc = 0;

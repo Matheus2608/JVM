@@ -7,6 +7,10 @@ using std::size_t;
 
 using namespace std;
 
+/**
+ * @brief Inicia o stream de leitura do arquivo em formato binário.
+ * Garante que o arquivo existe e pode ser acessado antes de continuar a execução.
+ */
 Leitor::Leitor(const string &filename) : filename(filename), file(filename, ios::binary)
 {
     if (!file.is_open())
@@ -36,7 +40,13 @@ std::vector<u1> Leitor::read_bytes(size_t length)
     return buf;
 }
 
-
+/**
+ * @brief Lê 4 bytes (u4) e converte do formato Big-Endian.
+ * 
+ * A JVM armazena dados em Big-Endian (byte mais significativo primeiro).
+ * Aplica operações de bitwise shift (<<) combinadas com OR (|) para remontar 
+ * o número corretamente caso o programa esteja rodando em um processador x86 (Little-Endian).
+ */
 u4 Leitor::readu4()
 {
     u1 buffer[4];
