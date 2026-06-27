@@ -1,21 +1,5 @@
 # Tarefas — JVM em C++
 
-## Arquitetura atual
-
-```
-jvm/
-  loader/
-    class_loader.hpp   ✅ completo
-    class_loader.cpp   ✅ completo
-  runtime/
-    runtime.hpp        ✅ completo  (Value, Frame, FrameStack)
-  interpreter/
-    interpreter.hpp    ✅ completo
-    interpreter.cpp    ✅ loop + dispatch table + opcodes parciais
-  heap/
-    heap.hpp           ❌ vazio
-```
-
 ### Fluxo de execução
 
 ```
