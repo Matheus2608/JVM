@@ -1,9 +1,9 @@
 #include "class_loader.hpp"
-#include "parser.hpp"
+#include "../parser/parser.hpp"
 #include "cp_utils.hpp"
 
 #include <stdexcept>
-#include <filesystem>
+#include <fstream>
 
 ClassLoader::ClassLoader(std::vector<std::string> classpath)
     : classpath_(std::move(classpath)) {}
@@ -75,7 +75,9 @@ std::string ClassLoader::resolvePath(const std::string& class_name) const {
 
     for (const std::string& dir : classpath_) {
         std::string full = dir + "/" + relative;
-        if (std::filesystem::exists(full))
+        // Checagem de existência em C++11: tenta abrir o arquivo.
+        std::ifstream f(full.c_str());
+        if (f.good())
             return full;
     }
     return "";

@@ -1,19 +1,53 @@
-# Leitor-Exibidor
+# JVM
 
-Leitor-Exibidor é uma ferramenta simples para ler arquivos Java `.class` e exibir suas estruturas internas (constant pool, fields, methods, etc.).
+JVM simplificada em C++ (trabalho acadêmico). O projeto tem duas frentes:
+
+- **Leitor-Exibidor** — lê arquivos Java `.class` e exibe suas estruturas internas
+  (constant pool, fields, methods, bytecodes desmontados, etc.). Binário: `bin/leitor-exibidor`.
+- **Interpretador (Execution Engine)** — carrega um `.class`, localiza o método `main` e
+  executa os bytecodes. Binário: `bin/jvm`.
+
+> Estado atual: a infraestrutura de execução está montada (Class Loader, Runtime Data Area,
+> loop de despacho), mas muitos opcodes do interpretador ainda são *stubs*. O Leitor-Exibidor
+> é totalmente funcional.
+
+Estrutura do projeto
+--------------------
+
+```
+jvm/
+├── main.cpp            # entry point do Leitor-Exibidor (exibe o .class)
+├── jvm.cpp             # entry point do interpretador (executa o .class)
+├── common/             # headers compartilhados (estrutura_dados, cp_utils, ...)
+├── leitor/             # leitura binária big-endian do .class
+├── parser/             # bytes do .class → class_info
+├── exibidor/           # exibição + disassembler de bytecode
+├── loader/             # ClassLoader + Method Area
+├── runtime/            # Value, Frame, FrameStack, PC Register
+├── heap/               # Heap (objetos e arrays)
+└── interpreter/        # loop de execução e opcodes
+```
 
 Build e execução
 -----------------
 
-Requisitos: `g++` (compatível com C++11/C++17) e `make`.
+Requisitos: `g++` (C++11) e `make`.
 
-1) Compilar o projeto:
+Compilar tudo (gera os dois binários):
 
 ```bash
 make
 ```
 
-2) Executar o binário (passar o arquivo `.class` como argumento):
+**Executar um `.class` no interpretador:**
+
+```bash
+make exec exemplos/fatorial.class
+# ou diretamente
+./bin/jvm exemplos/fatorial.class
+```
+
+**Exibir o conteúdo de um `.class` (Leitor-Exibidor):**
 
 ```bash
 make run ARGS="exemplos/Hello.class"
@@ -24,32 +58,73 @@ make run ARGS="exemplos/Hello.class"
 Compilação manual (sem make)
 -----------------------------
 
+Como cada componente vive em sua subpasta de `jvm/`, é preciso passar os `-I` correspondentes.
+
+Leitor-Exibidor:
+
 ```bash
-mkdir -p bin obj
-g++ -std=c++11 -Wall -Wextra -O2 -c main.cpp     -o obj/main.o
-g++ -std=c++11 -Wall -Wextra -O2 -c leitor.cpp   -o obj/leitor.o
-g++ -std=c++11 -Wall -Wextra -O2 -c parser.cpp   -o obj/parser.o
-g++ -std=c++11 -Wall -Wextra -O2 -c exibidor.cpp -o obj/exibidor.o
-g++ -std=c++11 -Wall -Wextra -O2 -c disasm.cpp   -o obj/disasm.o
-g++ -std=c++11 -Wall -Wextra -O2 obj/main.o obj/leitor.o obj/parser.o obj/exibidor.o obj/disasm.o -o bin/leitor-exibidor
+mkdir -p bin
+g++ -std=c++11 -Wall -Wextra -O2 \
+    -Ijvm/common -Ijvm/leitor -Ijvm/parser -Ijvm/exibidor \
+    jvm/main.cpp jvm/leitor/leitor.cpp jvm/parser/parser.cpp \
+    jvm/exibidor/exibidor.cpp jvm/exibidor/disasm.cpp \
+    -o bin/leitor-exibidor
 ```
 
-Ou em uma linha:
+Interpretador:
 
 ```bash
-mkdir -p bin && g++ -std=c++11 -Wall -Wextra -O2 main.cpp leitor.cpp parser.cpp exibidor.cpp disasm.cpp -o bin/leitor-exibidor
+mkdir -p bin
+g++ -std=c++11 -Wall -Wextra -O2 \
+    -Ijvm/common -Ijvm/leitor -Ijvm/parser -Ijvm/runtime \
+    -Ijvm/loader -Ijvm/heap -Ijvm/interpreter \
+    jvm/jvm.cpp jvm/interpreter/interpreter.cpp jvm/loader/class_loader.cpp \
+    jvm/parser/parser.cpp jvm/leitor/leitor.cpp \
+    -o bin/jvm
+```
+
+Debugar no VSCode
+-----------------
+
+Precisa da extensão **C/C++** da Microsoft (`ms-vscode.cpptools`) e do `gdb` instalado
+(`sudo apt install gdb`). O repositório já traz `.vscode/tasks.json` e `.vscode/launch.json`
+configurados.
+
+1. Coloque *breakpoints* clicando na margem esquerda das linhas (ex.: em `op_new` no
+   `jvm/interpreter/interpreter.cpp`).
+2. Abra o painel **Run and Debug** (`Ctrl+Shift+D`) e escolha a configuração:
+   - **Debug interpretador (bin/jvm)** — para depurar a execução de bytecode.
+   - **Debug leitor-exibidor (bin/leitor-exibidor)** — para depurar a leitura/exibição.
+3. Pressione **F5**. Antes de iniciar, ele roda a task `build-debug` (recompila com `-g -O0`)
+   e pergunta o caminho do `.class` (padrão: `exemplos/fatorial.class`).
+
+Atalhos durante a sessão: **F5** continua, **F10** passo sobre, **F11** entra na função,
+**Shift+F11** sai da função. Variáveis e a pilha de chamadas aparecem no painel lateral.
+
+> O importante é compilar com símbolos de debug. A task usa `make DEBUG=1`, que troca o `-O2`
+> por `-g -O0` — sem isso o gdb não consegue fazer passo-a-passo de forma confiável.
+
+Pela linha de comando, dá para depurar direto no `gdb`:
+
+```bash
+make DEBUG=1
+gdb --args ./bin/jvm exemplos/fatorial.class
 ```
 
 Testes
 ------
 
-Os testes ficam em `tests/`. Para compilar e executar os testes use:
+Os testes ficam em `tests/`. Para compilar e executar:
 
 ```bash
 make test
 ```
 
-Isso compila o projeto e executa todos os binários presentes em `tests/`.
+Para rodar um teste específico depois de compilado:
+
+```bash
+./bin/tests/<nome_do_teste>
+```
 
 Limpeza
 -------
@@ -58,9 +133,9 @@ Limpeza
 make clean
 ```
 
-Observações
------------
+Ajuda
+-----
 
-- Caso os testes dependam de arquivos `.class` de exemplo, certifique-se de que o caminho nos testes esteja correto (por exemplo `tests/hello.cpp` referencia `../exemplos/Hello.class`).
-- Se quiser executar um teste específico direto, rode `./bin/tests/<nome_do_teste>` após `make test` compilar os testes.
-
+```bash
+make help
+```

@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <cassert>
-#include "../parser.hpp"
+#include "parser.hpp"
 
 int main() {
     Parser parser("exemplos/Hello.class");

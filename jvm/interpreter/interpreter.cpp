@@ -1,5 +1,6 @@
 #include "interpreter.hpp"
 #include "cp_utils.hpp"
+#include "heap.hpp"
 
 #include <stdexcept>
 #include <sstream>
@@ -438,7 +439,32 @@ void Interpreter::op_invokestatic()    {} void Interpreter::op_invokespecial()  
 void Interpreter::op_invokevirtual()   {} void Interpreter::op_invokeinterface() {}
 void Interpreter::op_getstatic() {} void Interpreter::op_putstatic() {}
 void Interpreter::op_getfield()  {} void Interpreter::op_putfield()  {}
-void Interpreter::op_new()         {} void Interpreter::op_newarray()    {}
+// new — cria uma instância de classe e empilha sua referência.
+// Operando: índice u2 para um CONSTANT_Class no constant pool.
+void Interpreter::op_new() {
+    Frame& f = currentFrame();
+    uint16_t cp_index = fetchU2();
+
+    // Resolve o nome da classe e garante que ela esteja carregada.
+    std::string class_name = classNameFromConstantPool(*f.cls, cp_index);
+    const class_info& cls  = loader_.load(class_name);
+
+    // Aloca o objeto no heap e empilha a referência resultante.
+    int32_t ref = heap_.allocateObject(&cls, class_name);
+    f.push(Value::fromRef(ref));
+}
+
+// newarray — cria um array de tipo primitivo e empilha sua referência.
+// Operando: byte atype (T_BOOLEAN..T_LONG); o tamanho vem do topo da pilha.
+void Interpreter::op_newarray() {
+    Frame& f = currentFrame();
+    uint8_t atype  = fetchU1();
+    int32_t length = f.pop().data.i;
+
+    int32_t ref = heap_.allocateArray(atype, length);
+    f.push(Value::fromRef(ref));
+}
+
 void Interpreter::op_anewarray()   {} void Interpreter::op_arraylength() {}
 void Interpreter::op_iaload()  {} void Interpreter::op_iastore() {}
 void Interpreter::op_laload()  {} void Interpreter::op_lastore() {}

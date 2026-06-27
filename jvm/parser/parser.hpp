@@ -4,7 +4,7 @@
 #include "estrutura_dados.hpp"
 #include <string>
 #include "constants.hpp"
-#include "leitor.hpp"
+#include "../leitor/leitor.hpp"
 
 /**
  * @brief Motor principal de decodificação (parsing) do arquivo Java.
