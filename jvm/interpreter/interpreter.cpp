@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 // =============================================================================
 // Construtor — monta a dispatch table
@@ -381,7 +382,72 @@ void Interpreter::op_goto() {
     Frame& f = currentFrame();
     f.pc += offset - 3; // -3 = desfaz o avanço do opcode (1) + dos dois bytes do operando (2)
 }
+void Interpreter::op_ldc() {
+    Frame& f = currentFrame();
+    uint8_t idx = fetchU1();
+    const cp_info& entry = f.cls->constant_pool[idx];
 
+    if (entry.tag == CONSTANT_Integer) {
+        int32_t val = static_cast<int32_t>(entry.container.Integer.bytes);
+        f.push(Value::fromInt(val));
+        std::cout << "[DEBUG] op_ldc leu e empilhou o Integer: " << val << std::endl;
+    } 
+    else if (entry.tag == CONSTANT_Float) {
+        float val;
+        uint32_t bits = entry.container.Float.bytes;
+        memcpy(&val, &bits, sizeof(float));
+        f.push(Value::fromFloat(val));
+        std::cout << "[DEBUG] op_ldc leu e empilhou o Float: " << val << std::endl;
+    } 
+    else if (entry.tag == CONSTANT_String) {
+        f.push(Value::fromRef(0)); 
+        std::cout << "[DEBUG] op_ldc encontrou uma String (Ref=0 temporario)" << std::endl;
+    }
+}
+
+void Interpreter::op_ldc_w() {
+    Frame& f = currentFrame();
+    uint16_t idx = fetchU2();
+    const cp_info& entry = f.cls->constant_pool[idx];
+
+    if (entry.tag == CONSTANT_Integer) {
+        int32_t val = static_cast<int32_t>(entry.container.Integer.bytes);
+        f.push(Value::fromInt(val));
+        std::cout << "[DEBUG] op_ldc_w leu e empilhou o Integer: " << val << std::endl;
+    } 
+    else if (entry.tag == CONSTANT_Float) {
+        float val;
+        uint32_t bits = entry.container.Float.bytes;
+        memcpy(&val, &bits, sizeof(float));
+        f.push(Value::fromFloat(val));
+        std::cout << "[DEBUG] op_ldc_w leu e empilhou o Float: " << val << std::endl;
+    } 
+    else if (entry.tag == CONSTANT_String) {
+        f.push(Value::fromRef(0)); 
+        std::cout << "[DEBUG] op_ldc_w encontrou uma String (Ref=0 temporario)" << std::endl;
+    }
+}
+
+void Interpreter::op_ldc2_w() {
+    Frame& f = currentFrame();
+    uint16_t idx = fetchU2();
+    const cp_info& entry = f.cls->constant_pool[idx];
+
+    if (entry.tag == CONSTANT_Long) {
+        int64_t val = (static_cast<int64_t>(entry.container.Long.high_bytes) << 32)
+                    |  entry.container.Long.low_bytes;
+        f.push(Value::fromLong(val));
+        std::cout << "[DEBUG] op_ldc2_w leu e empilhou o Long: " << val << std::endl;
+    } 
+    else if (entry.tag == CONSTANT_Double) {
+        uint64_t bits = (static_cast<uint64_t>(entry.container.Double.high_bytes) << 32)
+                      |  entry.container.Double.low_bytes;
+        double val;
+        memcpy(&val, &bits, sizeof(double));
+        f.push(Value::fromDouble(val));
+        std::cout << "[DEBUG] op_ldc2_w leu e empilhou o Double: " << val << std::endl;
+    }
+}
 // Os demais opcodes seguem o mesmo padrão acima.
 // Implemente um a um conforme avançar nas etapas.
 
@@ -404,7 +470,7 @@ void Interpreter::op_dstore()  {} void Interpreter::op_dstore_0(){} void Interpr
 void Interpreter::op_dstore_2(){} void Interpreter::op_dstore_3(){}
 void Interpreter::op_astore()  {} void Interpreter::op_astore_0(){} void Interpreter::op_astore_1(){}
 void Interpreter::op_astore_2(){} void Interpreter::op_astore_3(){}
-void Interpreter::op_ldc()     {} void Interpreter::op_ldc_w()   {} void Interpreter::op_ldc2_w()  {}
+
 void Interpreter::op_ladd()    {} void Interpreter::op_lsub()    {} void Interpreter::op_lmul()    {}
 void Interpreter::op_ldiv()    {} void Interpreter::op_lrem()    {} void Interpreter::op_lneg()    {}
 void Interpreter::op_land()    {} void Interpreter::op_lor()     {} void Interpreter::op_lxor()    {}
