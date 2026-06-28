@@ -5,6 +5,7 @@
 #include <functional>
 #include <unordered_map>
 #include <string>
+#include "estrutura_dados.hpp"
 
 #include "runtime.hpp"
 #include "class_loader.hpp"
@@ -41,6 +42,7 @@ private:
     Heap&        heap_;
     bool         halted_ = false;
 
+
     // -------------------------------------------------------------------------
     // Dispatch table: opcode → handler
     // Preenchida no construtor uma vez; consultada a cada instrução.
@@ -52,13 +54,13 @@ private:
     // -------------------------------------------------------------------------
     // Helpers de leitura de bytecode (avançam o PC do frame atual)
     // -------------------------------------------------------------------------
-    Frame&   currentFrame();
-    uint8_t  fetchU1();
-    uint16_t fetchU2();
-    uint32_t fetchU4();
-    int8_t   fetchS1();
-    int16_t  fetchS2();
-    int32_t  fetchS4();
+    Frame& currentFrame();
+    u1     fetchU1();
+    u2     fetchU2();
+    u4     fetchU4();
+    int8_t  fetchS1();
+    int16_t fetchS2();
+    int32_t fetchS4();
     void     branch(int32_t offset); // aplica offset relativo ao PC
 
     // Localiza o atributo Code de um método
@@ -199,6 +201,12 @@ private:
     // -------------------------------------------------------------------------
     void op_athrow();
     void op_checkcast(); void op_instanceof();
+
+    // -------------------------------------------------------------------------
+    // Helpers internos
+    // -------------------------------------------------------------------------
+    // Intercepta chamadas a PrintStream.print/println e imprime direto em stdout.
+    void simulatePrint(const std::string& method_name, const std::string& descriptor);
 };
 
 #endif // JVM_INTERPRETER_HPP

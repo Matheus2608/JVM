@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "estrutura_dados.hpp"
+#include "runtime.hpp"
 
 /**
  * Carrega arquivos .class sob demanda e os mantém em memória (Method Area).
@@ -52,9 +53,9 @@ public:
     // Chave: "NomeDaClasse::nomeDoCampo"  ex: "ContadorGlobal::total"
     // -------------------------------------------------------------------------
 
-    bool        hasStaticField(const std::string& key) const;
-    void        setStaticField(const std::string& key, int32_t value);
-    int32_t     getStaticField(const std::string& key) const;
+    bool  hasStaticField(const std::string& key) const;
+    void  setStaticField(const std::string& key, Value value);
+    Value getStaticField(const std::string& key) const;
 
 private:
     std::vector<std::string> classpath_;
@@ -62,8 +63,8 @@ private:
     // A Method Area: nome interno da classe → class_info parseada
     std::unordered_map<std::string, class_info> classes_;
 
-    // Campos estáticos: "Classe::campo" → valor (int32 por enquanto)
-    std::unordered_map<std::string, int32_t> static_fields_;
+    // Campos estáticos: "Classe::campo" → valor (Value suporta todos os tipos JVM)
+    std::unordered_map<std::string, Value> static_fields_;
 
     // Classes que já tiveram <clinit> executado pelo interpretador
     std::unordered_set<std::string> initialized_classes_;

@@ -54,11 +54,11 @@ bool ClassLoader::hasStaticField(const std::string& key) const {
     return static_fields_.count(key) > 0;
 }
 
-void ClassLoader::setStaticField(const std::string& key, int32_t value) {
+void ClassLoader::setStaticField(const std::string& key, Value value) {
     static_fields_[key] = value;
 }
 
-int32_t ClassLoader::getStaticField(const std::string& key) const {
+Value ClassLoader::getStaticField(const std::string& key) const {
     auto it = static_fields_.find(key);
     if (it == static_fields_.end())
         throw std::runtime_error("ClassLoader: campo estatico nao inicializado: " + key);

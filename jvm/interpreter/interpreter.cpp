@@ -218,21 +218,21 @@ Frame& Interpreter::currentFrame() {
     return frame_stack_.top();
 }
 
-uint8_t Interpreter::fetchU1() {
+u1 Interpreter::fetchU1() {
     Frame& f = currentFrame();
     return f.code->code[f.pc++];
 }
 
-uint16_t Interpreter::fetchU2() {
-    uint8_t hi = fetchU1();
-    uint8_t lo = fetchU1();
-    return static_cast<uint16_t>((hi << 8) | lo);
+u2 Interpreter::fetchU2() {
+    u1 hi = fetchU1();
+    u1 lo = fetchU1();
+    return static_cast<u2>((hi << 8) | lo);
 }
 
-uint32_t Interpreter::fetchU4() {
-    uint16_t hi = fetchU2();
-    uint16_t lo = fetchU2();
-    return static_cast<uint32_t>((hi << 16) | lo);
+u4 Interpreter::fetchU4() {
+    u2 hi = fetchU2();
+    u2 lo = fetchU2();
+    return static_cast<u4>((hi << 16) | lo);
 }
 
 int8_t  Interpreter::fetchS1() { return static_cast<int8_t> (fetchU1()); }
@@ -344,7 +344,7 @@ void Interpreter::op_iload_3() { Frame& f = currentFrame(); f.push(f.locals[3]);
 
 void Interpreter::op_iload() {
     Frame& f = currentFrame();
-    uint8_t idx = fetchU1();
+    u1 idx = fetchU1();
     f.push(f.locals[idx]);
 }
 
@@ -355,14 +355,14 @@ void Interpreter::op_istore_3() { Frame& f = currentFrame(); f.locals[3] = f.pop
 
 void Interpreter::op_istore() {
     Frame& f = currentFrame();
-    uint8_t idx = fetchU1();
+    u1 idx = fetchU1();
     f.locals[idx] = f.pop();
 }
 
 void Interpreter::op_iinc() {
     Frame& f  = currentFrame();
-    uint8_t idx = fetchU1();
-    int8_t  cst = fetchS1();
+    u1     idx = fetchU1();
+    int8_t cst = fetchS1();
     f.locals[idx].data.i += cst;
 }
 
@@ -385,53 +385,53 @@ void Interpreter::op_goto() {
 }
 void Interpreter::op_ldc() {
     Frame& f = currentFrame();
-    uint8_t idx = fetchU1();
+    u1 idx = fetchU1();
     const cp_info& entry = f.cls->constant_pool[idx];
 
     if (entry.tag == CONSTANT_Integer) {
         int32_t val = static_cast<int32_t>(entry.container.Integer.bytes);
         f.push(Value::fromInt(val));
         std::cout << "[DEBUG] op_ldc leu e empilhou o Integer: " << val << std::endl;
-    } 
+    }
     else if (entry.tag == CONSTANT_Float) {
         float val;
-        uint32_t bits = entry.container.Float.bytes;
+        u4 bits = entry.container.Float.bytes;
         memcpy(&val, &bits, sizeof(float));
         f.push(Value::fromFloat(val));
         std::cout << "[DEBUG] op_ldc leu e empilhou o Float: " << val << std::endl;
-    } 
+    }
     else if (entry.tag == CONSTANT_String) {
-        f.push(Value::fromRef(0)); 
+        f.push(Value::fromRef(0));
         std::cout << "[DEBUG] op_ldc encontrou uma String (Ref=0 temporario)" << std::endl;
     }
 }
 
 void Interpreter::op_ldc_w() {
     Frame& f = currentFrame();
-    uint16_t idx = fetchU2();
+    u2 idx = fetchU2();
     const cp_info& entry = f.cls->constant_pool[idx];
 
     if (entry.tag == CONSTANT_Integer) {
         int32_t val = static_cast<int32_t>(entry.container.Integer.bytes);
         f.push(Value::fromInt(val));
         std::cout << "[DEBUG] op_ldc_w leu e empilhou o Integer: " << val << std::endl;
-    } 
+    }
     else if (entry.tag == CONSTANT_Float) {
         float val;
-        uint32_t bits = entry.container.Float.bytes;
+        u4 bits = entry.container.Float.bytes;
         memcpy(&val, &bits, sizeof(float));
         f.push(Value::fromFloat(val));
         std::cout << "[DEBUG] op_ldc_w leu e empilhou o Float: " << val << std::endl;
-    } 
+    }
     else if (entry.tag == CONSTANT_String) {
-        f.push(Value::fromRef(0)); 
+        f.push(Value::fromRef(0));
         std::cout << "[DEBUG] op_ldc_w encontrou uma String (Ref=0 temporario)" << std::endl;
     }
 }
 
 void Interpreter::op_ldc2_w() {
     Frame& f = currentFrame();
-    uint16_t idx = fetchU2();
+    u2 idx = fetchU2();
     const cp_info& entry = f.cls->constant_pool[idx];
 
     if (entry.tag == CONSTANT_Long) {
@@ -439,10 +439,10 @@ void Interpreter::op_ldc2_w() {
                     |  entry.container.Long.low_bytes;
         f.push(Value::fromLong(val));
         std::cout << "[DEBUG] op_ldc2_w leu e empilhou o Long: " << val << std::endl;
-    } 
+    }
     else if (entry.tag == CONSTANT_Double) {
-        uint64_t bits = (static_cast<uint64_t>(entry.container.Double.high_bytes) << 32)
-                      |  entry.container.Double.low_bytes;
+        u8 bits = (static_cast<u8>(entry.container.Double.high_bytes) << 32)
+                |  entry.container.Double.low_bytes;
         double val;
         memcpy(&val, &bits, sizeof(double));
         f.push(Value::fromDouble(val));
@@ -555,7 +555,7 @@ void Interpreter::op_lshr() {
 void Interpreter::op_lushr() {
     Frame& f = currentFrame();
     int32_t b = f.pop().data.i & 0x3f;
-    uint64_t a = static_cast<uint64_t>(f.pop().data.l);
+    u8      a = static_cast<u8>(f.pop().data.l);
     int64_t result = static_cast<int64_t>(a >> b);
     f.push(Value::fromLong(result));
     std::cout << "[DEBUG] op_lushr: " << a << " >>> " << b << " = " << result << std::endl;
@@ -778,14 +778,134 @@ void Interpreter::op_goto_w()  {} void Interpreter::op_tableswitch() {} void Int
 void Interpreter::op_lreturn() {} void Interpreter::op_freturn() {}
 void Interpreter::op_dreturn() {} void Interpreter::op_areturn() {}
 void Interpreter::op_invokestatic()    {} void Interpreter::op_invokespecial()   {}
-void Interpreter::op_invokevirtual()   {} void Interpreter::op_invokeinterface() {}
-void Interpreter::op_getstatic() {} void Interpreter::op_putstatic() {}
+void Interpreter::op_invokeinterface() {}
 void Interpreter::op_getfield()  {} void Interpreter::op_putfield()  {}
+
+// getstatic — lê um campo estático e empilha seu valor.
+// Intercepta java/lang/System.out para simular println sem carregar a stdlib.
+void Interpreter::op_getstatic() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    std::string class_name = classNameFromConstantPool(*f.cls, ref.container.Fieldref.class_index);
+    const cp_info& nat     = f.cls->constant_pool[ref.container.Fieldref.name_and_type_index];
+    std::string field_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+    std::string descriptor = utf8FromConstantPool(*f.cls, nat.container.NameAndType.descriptor_index);
+
+    if (class_name == "java/lang/System" && field_name == "out") {
+        // O valor empilhado é irrelevante: op_invokevirtual detecta PrintStream
+        // pelo nome da classe no constant pool, não pela referência em si.
+        f.push(Value::null());
+        return;
+    }
+
+    std::string key = class_name + "::" + field_name;
+    if (!loader_.hasStaticField(key)) {
+        // Campo ainda não inicializado: Java garante defaults antes de <clinit>.
+        // O tipo correto vem do descritor para não corromper a pilha de operandos.
+        if (descriptor == "J")
+            f.push(Value::fromLong(0));
+        else if (descriptor == "F")
+            f.push(Value::fromFloat(0.0f));
+        else if (descriptor == "D")
+            f.push(Value::fromDouble(0.0));
+        else if (descriptor[0] == 'L' || descriptor[0] == '[')
+            f.push(Value::null());
+        else
+            f.push(Value::fromInt(0)); // I, Z, B, C, S
+        return;
+    }
+    f.push(loader_.getStaticField(key));
+}
+
+// putstatic — desempilha um valor e o armazena no campo estático correspondente.
+void Interpreter::op_putstatic() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref = f.cls->constant_pool[cp_index];
+    std::string class_name = classNameFromConstantPool(*f.cls, ref.container.Fieldref.class_index);
+    const cp_info& nat     = f.cls->constant_pool[ref.container.Fieldref.name_and_type_index];
+    std::string field_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+
+    Value val = f.pop();
+    loader_.setStaticField(class_name + "::" + field_name, val);
+}
+
+// invokevirtual — por enquanto intercepta PrintStream.print/println.
+// Outras chamadas dinâmicas serão implementadas junto com herança/polimorfismo.
+void Interpreter::op_invokevirtual() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    std::string class_name  = classNameFromConstantPool(*f.cls, ref.container.Methodref.class_index);
+    const cp_info& nat      = f.cls->constant_pool[ref.container.Methodref.name_and_type_index];
+    std::string method_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+    std::string descriptor  = utf8FromConstantPool(*f.cls, nat.container.NameAndType.descriptor_index);
+
+    if (class_name == "java/io/PrintStream" &&
+        (method_name == "println" || method_name == "print")) {
+        simulatePrint(method_name, descriptor);
+        return;
+    }
+
+    throw std::runtime_error("invokevirtual nao implementado: " +
+                             class_name + "." + method_name + descriptor);
+}
+
+// simulatePrint — imprime o argumento no topo da pilha diretamente em stdout,
+// simulando PrintStream.print/println sem carregar nenhuma classe da stdlib Java.
+void Interpreter::simulatePrint(const std::string& method_name, const std::string& descriptor) {
+    Frame& f = currentFrame();
+    bool newline = (method_name == "println");
+
+    if (descriptor == "()V") {
+        f.pop(); // descarta o receiver (objectref do PrintStream)
+        if (newline) std::cout << "\n";
+        return;
+    }
+
+    if (descriptor == "(I)V" || descriptor == "(B)V" || descriptor == "(S)V") {
+        int32_t val = f.pop().data.i;
+        f.pop(); // receiver
+        std::cout << val;
+    } else if (descriptor == "(J)V") {
+        int64_t val = f.pop().data.l;
+        f.pop();
+        std::cout << val;
+    } else if (descriptor == "(F)V") {
+        float val = f.pop().data.f;
+        f.pop();
+        std::cout << val;
+    } else if (descriptor == "(D)V") {
+        double val = f.pop().data.d;
+        f.pop();
+        std::cout << val;
+    } else if (descriptor == "(Z)V") {
+        int32_t val = f.pop().data.i;
+        f.pop();
+        std::cout << (val ? "true" : "false");
+    } else if (descriptor == "(C)V") {
+        int32_t val = f.pop().data.i;
+        f.pop();
+        std::cout << static_cast<char>(val);
+    } else if (descriptor == "(Ljava/lang/String;)V") {
+        f.pop(); // string ref (suporte completo a String ainda pendente)
+        f.pop(); // receiver
+        std::cout << "(String)";
+    } else {
+        throw std::runtime_error("simulatePrint: descritor nao suportado: " + descriptor);
+    }
+
+    if (newline) std::cout << "\n";
+}
 // new — cria uma instância de classe e empilha sua referência.
 // Operando: índice u2 para um CONSTANT_Class no constant pool.
 void Interpreter::op_new() {
     Frame& f = currentFrame();
-    uint16_t cp_index = fetchU2();
+    u2 cp_index = fetchU2();
 
     // Resolve o nome da classe e garante que ela esteja carregada.
     std::string class_name = classNameFromConstantPool(*f.cls, cp_index);
@@ -800,7 +920,7 @@ void Interpreter::op_new() {
 // Operando: byte atype (T_BOOLEAN..T_LONG); o tamanho vem do topo da pilha.
 void Interpreter::op_newarray() {
     Frame& f = currentFrame();
-    uint8_t atype  = fetchU1();
+    u1 atype  = fetchU1();
     int32_t length = f.pop().data.i;
 
     int32_t ref = heap_.allocateArray(atype, length);

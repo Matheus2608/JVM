@@ -2,6 +2,7 @@
 #define JVM_HEAP_HPP
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -58,18 +59,23 @@ struct HeapArray {
         T_REFERENCE = 0,  // arrays de objetos (anewarray)
     };
 
-    uint8_t            element_type = T_REFERENCE;
+    u1                 element_type = T_REFERENCE;
     std::string        element_class; // nome da classe (apenas para arrays de referência)
     std::vector<Value> elements;
 };
 
 // -----------------------------------------------------------------------------
 // HeapCell — célula da tabela do heap: ou um objeto, ou um array.
+//
+// Usa unique_ptr para garantir que apenas uma das duas alternativas existe em
+// memória a cada momento — semântica de union sem os problemas de C++11 com
+// tipos não-triviais (std::vector / std::unordered_map não cabem em union bruta).
+// Em C++17 isso seria std::variant<HeapObject, HeapArray>.
 // -----------------------------------------------------------------------------
 struct HeapCell {
-    enum class Kind { OBJECT, ARRAY } kind;
-    HeapObject object;
-    HeapArray  array;
+    enum class Kind { OBJECT, ARRAY } kind = Kind::OBJECT;
+    std::unique_ptr<HeapObject> object; // não-nulo quando kind == OBJECT
+    std::unique_ptr<HeapArray>  array;  // não-nulo quando kind == ARRAY
 };
 
 // =============================================================================
@@ -89,22 +95,24 @@ public:
     // Cria uma instância da classe dada e devolve sua referência (>= 1).
     int32_t allocateObject(const class_info* cls, const std::string& class_name) {
         HeapCell cell;
-        cell.kind             = HeapCell::Kind::OBJECT;
-        cell.object.cls        = cls;
-        cell.object.class_name = class_name;
+        cell.kind          = HeapCell::Kind::OBJECT;
+        cell.object.reset(new HeapObject());
+        cell.object->cls        = cls;
+        cell.object->class_name = class_name;
         cells_.push_back(std::move(cell));
         return static_cast<int32_t>(cells_.size() - 1);
     }
 
     // Cria um array de tipo primitivo (newarray) e devolve sua referência.
-    int32_t allocateArray(uint8_t element_type, int32_t length) {
+    int32_t allocateArray(u1 element_type, int32_t length) {
         if (length < 0)
             throw std::runtime_error("NegativeArraySizeException");
 
         HeapCell cell;
-        cell.kind               = HeapCell::Kind::ARRAY;
-        cell.array.element_type  = element_type;
-        cell.array.elements.assign(static_cast<size_t>(length), defaultFor(element_type));
+        cell.kind = HeapCell::Kind::ARRAY;
+        cell.array.reset(new HeapArray());
+        cell.array->element_type = element_type;
+        cell.array->elements.assign(static_cast<size_t>(length), defaultFor(element_type));
         cells_.push_back(std::move(cell));
         return static_cast<int32_t>(cells_.size() - 1);
     }
@@ -115,10 +123,11 @@ public:
             throw std::runtime_error("NegativeArraySizeException");
 
         HeapCell cell;
-        cell.kind                = HeapCell::Kind::ARRAY;
-        cell.array.element_type   = HeapArray::T_REFERENCE;
-        cell.array.element_class  = element_class;
-        cell.array.elements.assign(static_cast<size_t>(length), Value::null());
+        cell.kind = HeapCell::Kind::ARRAY;
+        cell.array.reset(new HeapArray());
+        cell.array->element_type  = HeapArray::T_REFERENCE;
+        cell.array->element_class = element_class;
+        cell.array->elements.assign(static_cast<size_t>(length), Value::null());
         cells_.push_back(std::move(cell));
         return static_cast<int32_t>(cells_.size() - 1);
     }
@@ -133,14 +142,14 @@ public:
         HeapCell& cell = at(ref);
         if (cell.kind != HeapCell::Kind::OBJECT)
             throw std::runtime_error("Heap: referencia nao aponta para um objeto");
-        return cell.object;
+        return *cell.object;
     }
 
     HeapArray& array(int32_t ref) {
         HeapCell& cell = at(ref);
         if (cell.kind != HeapCell::Kind::ARRAY)
             throw std::runtime_error("Heap: referencia nao aponta para um array");
-        return cell.array;
+        return *cell.array;
     }
 
     // -------------------------------------------------------------------------
@@ -194,7 +203,7 @@ private:
     }
 
     // Valor inicial de cada elemento conforme o tipo (zero/0.0/null).
-    static Value defaultFor(uint8_t element_type) {
+    static Value defaultFor(u1 element_type) {
         switch (element_type) {
             case HeapArray::T_LONG:      return Value::fromLong(0);
             case HeapArray::T_FLOAT:     return Value::fromFloat(0.0f);
