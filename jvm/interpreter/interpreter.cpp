@@ -6,6 +6,7 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <cmath>
 
 // =============================================================================
 // Construtor — monta a dispatch table
@@ -448,6 +449,292 @@ void Interpreter::op_ldc2_w() {
         std::cout << "[DEBUG] op_ldc2_w leu e empilhou o Double: " << val << std::endl;
     }
 }
+
+//ARITMÉTICA PARA LONG(64 BITS)
+void Interpreter::op_ladd() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int64_t result = a + b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_ladd: " << a << " + " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lmul() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int64_t result = a * b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lmul: " << a << " * " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lsub() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int64_t result = a - b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lsub: " << a << " - " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_ldiv() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    if (b == 0) throw std::runtime_error("ArithmeticException: / by zero");
+    int64_t result = a / b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_ldiv: " << a << " / " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lrem() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    if (b == 0) throw std::runtime_error("ArithmeticException: / by zero");
+    int64_t result = a % b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lrem: " << a << " % " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lneg() {
+    Frame& f = currentFrame();
+    int64_t a = f.pop().data.l;
+    int64_t result = -a;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lneg: -" << a << " = " << result << std::endl;
+}
+
+//BIT A BIT PARA LONG
+void Interpreter::op_land() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int64_t result = a & b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_land: " << a << " & " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lor() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int64_t result = a | b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lor: " << a << " | " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lxor() {
+    Frame& f = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int64_t result = a ^ b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lxor: " << a << " ^ " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lshl() {
+    Frame& f = currentFrame();
+    int32_t b = f.pop().data.i & 0x3f;
+    int64_t a = f.pop().data.l;
+    int64_t result = a << b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lshl: " << a << " << " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lshr() {
+    Frame& f = currentFrame();
+    int32_t b = f.pop().data.i & 0x3f;
+    int64_t a = f.pop().data.l;
+    int64_t result = a >> b;
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lshr: " << a << " >> " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_lushr() {
+    Frame& f = currentFrame();
+    int32_t b = f.pop().data.i & 0x3f;
+    uint64_t a = static_cast<uint64_t>(f.pop().data.l);
+    int64_t result = static_cast<int64_t>(a >> b);
+    f.push(Value::fromLong(result));
+    std::cout << "[DEBUG] op_lushr: " << a << " >>> " << b << " = " << result << std::endl;
+}
+
+//ARITMETICA PARA FLOAT E DOUBLE
+// --- FLOAT ---
+void Interpreter::op_fadd() {
+    Frame& f = currentFrame();
+    float b = f.pop().data.f;
+    float a = f.pop().data.f;
+    float result = a + b;
+    f.push(Value::fromFloat(result));
+    std::cout << "[DEBUG] op_fadd: " << a << " + " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_fsub() {
+    Frame& f = currentFrame();
+    float b = f.pop().data.f;
+    float a = f.pop().data.f;
+    float result = a - b;
+    f.push(Value::fromFloat(result));
+    std::cout << "[DEBUG] op_fsub: " << a << " - " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_fmul() {
+    Frame& f = currentFrame();
+    float b = f.pop().data.f;
+    float a = f.pop().data.f;
+    float result = a * b;
+    f.push(Value::fromFloat(result));
+    std::cout << "[DEBUG] op_fmul: " << a << " * " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_fdiv() {
+    Frame& f = currentFrame();
+    float b = f.pop().data.f;
+    float a = f.pop().data.f;
+    float result = a / b;
+    f.push(Value::fromFloat(result));
+    std::cout << "[DEBUG] op_fdiv: " << a << " / " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_fneg() {
+    Frame& f = currentFrame();
+    float a = f.pop().data.f;
+    float result = -a;
+    f.push(Value::fromFloat(result));
+    std::cout << "[DEBUG] op_fneg: -" << a << " = " << result << std::endl;
+}
+
+void Interpreter::op_frem() {
+    Frame& f = currentFrame();
+    float b = f.pop().data.f;
+    float a = f.pop().data.f;
+    float result = std::fmod(a, b);
+    f.push(Value::fromFloat(result));
+    std::cout << "[DEBUG] op_frem: " << a << " % " << b << " = " << result << std::endl;
+}
+
+// --- DOUBLE ---
+void Interpreter::op_dadd() { 
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    double result = a + b;
+    f.push(Value::fromDouble(result));
+    std::cout << "[DEBUG] op_dadd: " << a << " + " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_dsub() { 
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    double result = a - b;
+    f.push(Value::fromDouble(result));
+    std::cout << "[DEBUG] op_dsub: " << a << " - " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_dmul() { 
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    double result = a * b;
+    f.push(Value::fromDouble(result));
+    std::cout << "[DEBUG] op_dmul: " << a << " * " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_ddiv() { 
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    double result = a / b;
+    f.push(Value::fromDouble(result));
+    std::cout << "[DEBUG] op_ddiv: " << a << " / " << b << " = " << result << std::endl;
+}
+
+void Interpreter::op_dneg() {
+    Frame& f = currentFrame();
+    double a = f.pop().data.d;
+    double result = -a;
+    f.push(Value::fromDouble(result));
+    std::cout << "[DEBUG] op_dneg: -" << a << " = " << result << std::endl;
+}
+
+void Interpreter::op_drem() {
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    double result = std::fmod(a, b);
+    f.push(Value::fromDouble(result));
+    std::cout << "[DEBUG] op_drem: " << a << " % " << b << " = " << result << std::endl;
+}
+
+//LCMP, FCMP E DCMP
+void Interpreter::op_lcmp() {
+    Frame& f  = currentFrame();
+    int64_t b = f.pop().data.l;
+    int64_t a = f.pop().data.l;
+    int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
+    f.push(Value::fromInt(result));
+    std::cout << "[DEBUG] op_lcmp comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
+}
+
+void Interpreter::op_fcmpl() {
+    Frame& f = currentFrame();
+    float b  = f.pop().data.f;
+    float a  = f.pop().data.f;
+    if (std::isnan(a) || std::isnan(b)) {
+        f.push(Value::fromInt(-1));
+        std::cout << "[DEBUG] op_fcmpl: NaN detectado -> pilha recebeu: -1" << std::endl;
+        return;
+    }
+    int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
+    f.push(Value::fromInt(result));
+    std::cout << "[DEBUG] op_fcmpl comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
+}
+
+void Interpreter::op_fcmpg() {
+    Frame& f = currentFrame();
+    float b  = f.pop().data.f;
+    float a  = f.pop().data.f;
+    if (std::isnan(a) || std::isnan(b)) {
+        f.push(Value::fromInt(1));
+        std::cout << "[DEBUG] op_fcmpg: NaN detectado -> pilha recebeu: 1" << std::endl;
+        return;
+    }
+    int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
+    f.push(Value::fromInt(result));
+    std::cout << "[DEBUG] op_fcmpg comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
+}
+
+void Interpreter::op_dcmpl() {
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    if (std::isnan(a) || std::isnan(b)) {
+        f.push(Value::fromInt(-1));
+        std::cout << "[DEBUG] op_dcmpl: NaN detectado -> pilha recebeu: -1" << std::endl;
+        return;
+    }
+    int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
+    f.push(Value::fromInt(result));
+    std::cout << "[DEBUG] op_dcmpl comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
+}
+
+void Interpreter::op_dcmpg() {
+    Frame& f = currentFrame();
+    double b = f.pop().data.d;
+    double a = f.pop().data.d;
+    if (std::isnan(a) || std::isnan(b)) {
+        f.push(Value::fromInt(1));
+        std::cout << "[DEBUG] op_dcmpg: NaN detectado -> pilha recebeu: 1" << std::endl;
+        return;
+    }
+    int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
+    f.push(Value::fromInt(result));
+    std::cout << "[DEBUG] op_dcmpg comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
+}
 // Os demais opcodes seguem o mesmo padrão acima.
 // Implemente um a um conforme avançar nas etapas.
 
@@ -471,17 +758,6 @@ void Interpreter::op_dstore_2(){} void Interpreter::op_dstore_3(){}
 void Interpreter::op_astore()  {} void Interpreter::op_astore_0(){} void Interpreter::op_astore_1(){}
 void Interpreter::op_astore_2(){} void Interpreter::op_astore_3(){}
 
-void Interpreter::op_ladd()    {} void Interpreter::op_lsub()    {} void Interpreter::op_lmul()    {}
-void Interpreter::op_ldiv()    {} void Interpreter::op_lrem()    {} void Interpreter::op_lneg()    {}
-void Interpreter::op_land()    {} void Interpreter::op_lor()     {} void Interpreter::op_lxor()    {}
-void Interpreter::op_lshl()    {} void Interpreter::op_lshr()    {} void Interpreter::op_lushr()   {}
-void Interpreter::op_lcmp()    {}
-void Interpreter::op_fadd()    {} void Interpreter::op_fsub()    {} void Interpreter::op_fmul()    {}
-void Interpreter::op_fdiv()    {} void Interpreter::op_frem()    {} void Interpreter::op_fneg()    {}
-void Interpreter::op_fcmpl()   {} void Interpreter::op_fcmpg()   {}
-void Interpreter::op_dadd()    {} void Interpreter::op_dsub()    {} void Interpreter::op_dmul()    {}
-void Interpreter::op_ddiv()    {} void Interpreter::op_drem()    {} void Interpreter::op_dneg()    {}
-void Interpreter::op_dcmpl()   {} void Interpreter::op_dcmpg()   {}
 void Interpreter::op_iand()    {} void Interpreter::op_ior()     {} void Interpreter::op_ixor()    {}
 void Interpreter::op_ishl()    {} void Interpreter::op_ishr()    {} void Interpreter::op_iushr()   {}
 void Interpreter::op_pop()     {} void Interpreter::op_pop2()    {}
