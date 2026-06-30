@@ -909,31 +909,152 @@ void Interpreter::op_new() {
 
     // Resolve o nome da classe e garante que ela esteja carregada.
     std::string class_name = classNameFromConstantPool(*f.cls, cp_index);
-    const class_info& cls  = loader_.load(class_name);
-
-    // Aloca o objeto no heap e empilha a referência resultante.
-    int32_t ref = heap_.allocateObject(&cls, class_name);
+    loader_.load(class_name);
+    
+    int32_t ref = heap_.allocObject(class_name);
     f.push(Value::fromRef(ref));
 }
 
 // newarray — cria um array de tipo primitivo e empilha sua referência.
 // Operando: byte atype (T_BOOLEAN..T_LONG); o tamanho vem do topo da pilha.
 void Interpreter::op_newarray() {
-    Frame& f = currentFrame();
-    u1 atype  = fetchU1();
+    Frame& f       = currentFrame();
+    u1 atype       = fetchU1();
     int32_t length = f.pop().data.i;
 
-    int32_t ref = heap_.allocateArray(atype, length);
+    std::string type_str;
+    switch (atype) {
+        case 4:  type_str = "Z"; break; // T_BOOLEAN
+        case 5:  type_str = "C"; break; // T_CHAR
+        case 6:  type_str = "F"; break; // T_FLOAT
+        case 7:  type_str = "D"; break; // T_DOUBLE
+        case 8:  type_str = "B"; break; // T_BYTE
+        case 9:  type_str = "S"; break; // T_SHORT
+        case 10: type_str = "I"; break; // T_INT
+        case 11: type_str = "J"; break; // T_LONG
+        default: throw std::runtime_error("Tipo inválido para newarray: " + std::to_string(atype));
+    }
+
+    int32_t ref = heap_.allocArray(type_str, length);
     f.push(Value::fromRef(ref));
 }
 
-void Interpreter::op_anewarray()   {} void Interpreter::op_arraylength() {}
-void Interpreter::op_iaload()  {} void Interpreter::op_iastore() {}
-void Interpreter::op_laload()  {} void Interpreter::op_lastore() {}
-void Interpreter::op_faload()  {} void Interpreter::op_fastore() {}
-void Interpreter::op_daload()  {} void Interpreter::op_dastore() {}
-void Interpreter::op_aaload()  {} void Interpreter::op_aastore() {}
-void Interpreter::op_baload()  {} void Interpreter::op_bastore() {}
-void Interpreter::op_caload()  {} void Interpreter::op_castore() {}
-void Interpreter::op_saload()  {} void Interpreter::op_sastore() {}
-void Interpreter::op_athrow()    {} void Interpreter::op_checkcast()  {} void Interpreter::op_instanceof() {}
+void Interpreter::op_anewarray() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+    int32_t length = f.pop().data.i;
+
+    std::string class_name = classNameFromConstantPool(*f.cls, cp_index);
+    loader_.load(class_name); // Garante que a classe do tipo do array exista
+
+    // O descritor para um array de objetos é "Lnome/da/classe;"
+    std::string type_str = "L" + class_name + ";";
+    int32_t ref = heap_.allocArray(type_str, length);
+    f.push(Value::fromRef(ref));
+}
+
+void Interpreter::op_arraylength() {
+    Frame& f = currentFrame();
+    int32_t ref = f.pop().data.ref;
+    JArray& arr = heap_.getArray(ref); // Lança NullPointerException se ref=0
+    f.push(Value::fromInt(arr.elements.size()));
+}
+
+void Interpreter::op_iaload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref = f.pop().data.ref;
+
+    JArray& arr = heap_.getArray(ref);
+    if (index < 0 || static_cast<size_t>(index) >= arr.elements.size()) {
+        throw std::runtime_error("ArrayIndexOutOfBoundsException");
+    }
+    f.push(arr.elements[index]);
+}
+
+void Interpreter::op_iastore() {
+    Frame& f = currentFrame();
+    Value val = f.pop();
+    int32_t index = f.pop().data.i;
+    int32_t ref = f.pop().data.ref;
+
+    JArray& arr = heap_.getArray(ref);
+    if (index < 0 || static_cast<size_t>(index) >= arr.elements.size()) {
+        throw std::runtime_error("ArrayIndexOutOfBoundsException");
+    }
+    arr.elements[index] = val;
+}
+
+// A lógica para load/store de outros tipos é idêntica, pois a struct Value
+// já carrega o tipo. Podemos simplesmente reutilizar a implementação de iaload/iastore.
+// Isso é uma simplificação para este projeto; uma JVM real faria checagens de tipo.
+void Interpreter::op_laload()  { op_iaload(); }
+void Interpreter::op_lastore() { op_iastore(); }
+void Interpreter::op_faload()  { op_iaload(); }
+void Interpreter::op_fastore() { op_iastore(); }
+void Interpreter::op_daload()  { op_iaload(); }
+void Interpreter::op_dastore() { op_iastore(); }
+void Interpreter::op_aaload()  { op_iaload(); }
+void Interpreter::op_aastore() { op_iastore(); }
+
+// Para baload e caload, a JVM real faz sign-extension ou zero-extension.
+// Como nosso `Value` não distingue `int` de `byte`, a implementação é a mesma.
+void Interpreter::op_baload()  { op_iaload(); }
+void Interpreter::op_caload()  { op_iaload(); }
+void Interpreter::op_saload()  { op_iaload(); }
+
+// Para bastore, etc., a JVM real faria truncamento.
+// Novamente, como nosso `Value` é unificado, a implementação é a mesma.
+void Interpreter::op_bastore() { op_iastore(); }
+void Interpreter::op_castore() { op_iastore(); }
+void Interpreter::op_sastore() { op_iastore(); }
+
+void Interpreter::op_athrow() {
+    // Desempilha a referência do objeto de exceção.
+    Value exc_ref = currentFrame().pop();
+    if (exc_ref.data.ref == 0) {
+        throw std::runtime_error("NullPointerException: Tentativa de lançar uma exceção nula.");
+    }
+
+    // Inicia a busca por um handler, propagando pela pilha de frames.
+    while (!frame_stack_.empty()) {
+        Frame& f = currentFrame();
+        // O PC aponta para a instrução *após* o athrow. A exceção ocorreu na instrução anterior.
+        size_t throw_pc = f.pc - 1;
+
+        // Itera na tabela de exceções do frame atual.
+        for (const exception_table_info& entry : f.code->exception_table) {
+            // Verifica se a exceção ocorreu dentro do bloco 'try' desta entrada.
+            if (throw_pc >= entry.start_pc && throw_pc < entry.end_pc) {
+                // Mock: Por enquanto, só tratamos o 'finally' (catch_type == 0).
+                // A verificação de tipo da exceção (Passo 2.4) virá depois.
+                if (entry.catch_type == 0) {
+                    // Passo 3: Handler encontrado!
+                    std::cout << "[DEBUG] op_athrow: Handler 'finally' encontrado no pc " << entry.handler_pc << std::endl;
+                    
+                    // Limpa a pilha de operandos.
+                    while(!f.operand_stack.empty()) f.operand_stack.pop();
+                    
+                    // Ajusta o PC para o início do bloco catch/finally.
+                    f.pc = entry.handler_pc;
+                    
+                    // Empilha a referência da exceção para o handler poder usá-la.
+                    f.push(exc_ref);
+                    
+                    // Para a busca e continua a execução no handler.
+                    return;
+                }
+            }
+        }
+
+        // Nenhum handler foi encontrado neste frame, propaga para o anterior.
+        std::cout << "[DEBUG] op_athrow: Handler não encontrado no frame atual, propagando..." << std::endl;
+        frame_stack_.pop();
+    }
+
+    // Se o loop terminar, a pilha de frames está vazia. A exceção não foi capturada.
+    throw std::runtime_error("Exceção não capturada.");
+}
+
+void Interpreter::op_checkcast()  {}
+void Interpreter::op_instanceof() {}

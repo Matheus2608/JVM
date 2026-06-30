@@ -34,7 +34,8 @@ JVM_SOURCES = jvm/jvm.cpp \
               jvm/interpreter/interpreter.cpp \
               jvm/loader/class_loader.cpp \
               jvm/parser/parser.cpp \
-              jvm/leitor/leitor.cpp
+              jvm/leitor/leitor.cpp \
+              jvm/heap/heap.cpp
 JVM_OBJECTS = $(JVM_SOURCES:%.cpp=$(OBJ_DIR)/%.o)
 JVM_EXEC = $(BIN_DIR)/jvm
 
