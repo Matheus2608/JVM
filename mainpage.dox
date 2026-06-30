@@ -1,0 +1,74 @@
+/**
+ * @mainpage Wiki do Projeto - Arquitetura da JVM
+ *
+ * @section intro Visão Geral
+ * Este projeto consiste numa implementação simplificada de uma Java Virtual Machine (JVM) dividida em duas frentes principais:
+ * 1. **Leitor-Exibidor**: Responsável pela leitura de bytecode binário big-endian e desmontagem das estruturas do arquivo `.class`.
+ * 2. **Interpretador (Execution Engine)**: Responsável pela gerência de memória (Heap), controle de escopo (FrameStack) e despacho de opcodes.
+ *
+ * @section comm_diagram Diagrama de Comunicação entre os Módulos
+ * Abaixo está representado o fluxo de comunicação de dados e controle entre as camadas do sistema.
+ *
+ * \dot
+ * digraph Comunicacao_Modulos_JVM {
+ *   fontname="Helvetica,Arial,sans-serif"
+ *   node [fontname="Helvetica,Arial,sans-serif" shape=box style=filled fillcolor="#EAEAEA" color="#333333"]
+ *   edge [fontname="Helvetica,Arial,sans-serif" fontsize=10 color="#555555"]
+ *   rankdir=TB;
+ *   splines=ortho;
+ *
+ *   // Subsistema Leitor-Exibidor
+ *   subgraph cluster_leitor_exibidor {
+ *     label = "Módulo Leitor-Exibidor";
+ *     color = "#1F77B4";
+ *     style = dashed;
+ *     Main_LE [label="main.cpp\n(Entry Point)"]
+ *     Exibidor [label="jvm/exibidor/\n(Exibidor & Disasm)"]
+ *   }
+ *
+ *   // Subsistema Interpretador
+ *   subgraph cluster_interpretador {
+ *     label = "Módulo Interpretador (Execution Engine)";
+ *     color = "#2CA02C";
+ *     style = dashed;
+ *     Main_JVM [label="jvm.cpp\n(Entry Point)"]
+ *     ClassLoader [label="jvm/loader/\n(Method Area)"]
+ *     Interpreter [label="jvm/interpreter/\n(Execution Loop)"]
+ *     Runtime [label="jvm/runtime/\n(FrameStack & Values)"]
+ *     Heap [label="jvm/heap/\n(Alocação Dinâmica)"]
+ *   }
+ *
+ *   // Infraestrutura Binária Compartilhada
+ *   subgraph cluster_infra {
+ *     label = "Infraestrutura Base";
+ *     color = "#D62728";
+ *     style = dashed;
+ *     Parser [label="jvm/parser/\n(class_info Struct)"]
+ *     Leitor [label="jvm/leitor/\n(Leitura Binária)"]
+ *     Common [label="jvm/common/\n(Headers)"]
+ *   }
+ *
+ *   // Fluxos do Leitor-Exibidor
+ *   Main_LE -> Exibidor [label="Instancia"];
+ *   Exibidor -> Parser [label="Chama parsing"];
+ *   
+ *   // Fluxos do Interpretador
+ *   Main_JVM -> ClassLoader [label="Inicializa"];
+ *   Main_JVM -> Interpreter [label="Instancia"];
+ *   
+ *   // Fluxos de Carregamento de Classes
+ *   ClassLoader -> Parser [label="Carrega .class"];
+ *   Parser -> Leitor [label="Consome bytes"];
+ *   
+ *   // Loop de Execução e Estado em Runtime
+ *   Interpreter -> ClassLoader [label="Resolve links"];
+ *   Interpreter -> Runtime [label="Empilha/Desempilha Frames"];
+ *   Interpreter -> Heap [label="Aloca instâncias"];
+ *   
+ *   // Dependências
+ *   Exibidor -> Common [label="Usa utils"];
+ *   Interpreter -> Common [label="Usa utils"];
+ *   Parser -> Common [label="Preenche class_info"];
+ * }
+ * \enddot
+ */

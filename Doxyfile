@@ -1,0 +1,33 @@
+# Configurações do Projeto
+PROJECT_NAME           = "JVM G3"
+OUTPUT_DIRECTORY       = doc/
+
+# Arquivos e Diretórios de Entrada
+INPUT                  = jvm/ jvm/common jvm/leitor jvm/parser jvm/exibidor jvm/loader jvm/runtime jvm/heap jvm/interpreter README.md mainpage.dox
+FILE_PATTERNS          = *.cpp *.hpp *.md *.dox
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = 
+
+# Geração de Diagramas (Graphviz/DOT)
+HAVE_DOT               = YES
+CLASS_DIAGRAMS        = YES
+DOT_IMAGE_FORMAT      = png
+DOT_TRANSPARENT       = YES
+DOT_NUM_THREADS        = 0
+
+# Formatos de Saída
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+# Otimizações de Extração
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+
+# Configurações para gerar links de Funções Chamadoras e Chamadas
+SOURCE_BROWSER         = YES
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+
+DOT_PATH = C:/Program Files/Graphviz/bin

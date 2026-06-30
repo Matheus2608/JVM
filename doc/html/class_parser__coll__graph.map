@@ -1,0 +1,7 @@
+<map id="Parser" name="Parser">
+<area shape="rect" id="Node000001" title="Motor principal de decodificação (parsing) do arquivo Java." alt="" coords="61,104,120,131"/>
+<area shape="rect" id="Node000002" href="$structclass__info.html" title="Nó raiz da estrutura do arquivo .class. Contém toda a hierarquia de dados extraída do binário." alt="" coords="5,5,86,32"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="42,45,45,64,50,79,58,91,71,103,66,104,55,95,45,81,40,65,41,50"/>
+<area shape="rect" id="Node000003" href="$class_leitor.html" title="Classe responsável pela leitura segura do arquivo binário (.class)." alt="" coords="111,5,164,32"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="127,45,99,105,95,102,122,47"/>
+</map>

@@ -1,0 +1,21 @@
+<map id="parseTypeDescriptor" name="parseTypeDescriptor">
+<area shape="rect" id="Node000001" title="Tradutor de Descritores de Tipo da JVM." alt="" coords="943,56,1084,83"/>
+<area shape="rect" id="Node000002" href="$descriptor_8hpp.html#ac09f574b5fb3d9c13d29e5ce01ddb8c5" title=" " alt="" coords="754,5,868,32"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="940,52,867,35,867,30,945,52"/>
+<area shape="rect" id="Node000006" href="$descriptor_8hpp.html#ad2cfe2c4b015da8ba2883fe6611dc220" title="Extrai e formata os parâmetros de um método." alt="" coords="727,56,895,83"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="925,69,896,72,896,67,930,69"/>
+<area shape="rect" id="Node000009" href="$descriptor_8hpp.html#a64bc828d61c5df7c7c2b07cb6e64e082" title="Extrai e formata o tipo de retorno de um método." alt="" coords="727,107,895,133"/>
+<area shape="poly" id="edge9_Node000001_Node000009" title=" " alt="" coords="945,87,868,109,867,103,940,87"/>
+<area shape="rect" id="Node000003" href="$class_exibidor.html#a573fa5949b283109214d73903b1740c1" title="Exibe os campos (variáveis) da classe e seus atributos específicos." alt="" coords="278,5,429,32"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="736,20,430,21,429,16,741,18"/>
+<area shape="rect" id="Node000004" href="$class_exibidor.html#a447db2eb5a8e00c18cb40f47064898fb" title="Função orquestradora que chama todas as rotinas de exibição em tela no terminal." alt="" coords="103,31,220,57"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="259,32,221,39,220,34,264,30"/>
+<area shape="rect" id="Node000005" href="$main_8cpp.html#a0ddf1224851353fc92bfbff6f499fa97" title="Ponto de entrada principal do Leitor&#45;Exibidor JVM." alt="" coords="5,31,55,57"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="85,46,56,47,54,41,89,42"/>
+<area shape="rect" id="Node000007" href="$class_exibidor.html#a0f353f2c9f0e9ab863520b8a3979c0c8" title="Traduz as strings difíceis da JVM para uma assinatura de método Java tradicional." alt="" coords="486,56,679,83"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="708,69,679,72,679,67,713,69"/>
+<area shape="rect" id="Node000008" href="$class_exibidor.html#ac00c1ae219b75f3130f79d218bf52983" title="Exibe informações a nível de Método e processa seus atributos." alt="" coords="268,56,438,83"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="468,70,439,72,439,67,473,69"/>
+<area shape="poly" id="edge8_Node000008_Node000004" title=" " alt="" coords="250,56,221,54,220,49,255,56"/>
+<area shape="poly" id="edge10_Node000009_Node000007" title=" " alt="" coords="730,103,646,86,646,81,735,103"/>
+</map>

@@ -1,0 +1,40 @@
+<map id="Exibidor::methodsDisplay" name="Exibidor::methodsDisplay">
+<area shape="rect" id="Node000001" title="Exibe informações a nível de Método e processa seus atributos." alt="" coords="5,257,176,284"/>
+<area shape="rect" id="Node000002" href="$cp__utils_8hpp.html#ad0f82184d57cb5d39d6ce90e1f946430" title="Resolve o nome de uma Classe." alt="" coords="684,257,881,284"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="176,268,670,268,668,273,176,273"/>
+<area shape="rect" id="Node000003" href="$cp__utils_8hpp.html#a6c57c52fcdea51fb003c712f304edaff" title="Extrator de Strings Utf8 puras da Constant Pool." alt="" coords="929,206,1081,233"/>
+<area shape="poly" id="edge22_Node000001_Node000003" title=" " alt="" coords="98,255,147,191,182,152,222,118,284,76,335,50,391,32,463,16,512,7,550,3,589,6,637,16,689,32,740,52,836,102,917,153,977,197,971,197,914,157,833,106,737,57,687,37,636,21,588,11,551,8,513,12,465,21,392,37,337,55,286,81,225,122,186,156,151,194,103,258"/>
+<area shape="rect" id="Node000004" href="$disasm_8cpp.html#adb63ae2028249dd044416387b105d504" title="O loop principal do interpretador de Bytecode (Disassembler)." alt="" coords="257,132,382,158"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="115,254,281,164,279,169,119,259"/>
+<area shape="rect" id="Node000010" href="$constants_8hpp.html#a17554b2238fd05f2df347632152eb0ed" title=" " alt="" coords="224,308,416,334"/>
+<area shape="poly" id="edge13_Node000001_Node000010" title=" " alt="" coords="154,282,244,302,239,305,155,287"/>
+<area shape="rect" id="Node000013" href="$class_exibidor.html#a0f353f2c9f0e9ab863520b8a3979c0c8" title="Traduz as strings difíceis da JVM para uma assinatura de método Java tradicional." alt="" coords="224,434,416,461"/>
+<area shape="poly" id="edge16_Node000001_Node000013" title=" " alt="" coords="111,282,291,423,287,426,109,287"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="844,254,931,236,926,238,845,259"/>
+<area shape="rect" id="Node000005" href="$cp__utils_8hpp.html#aef9a62716445b12e66d52adfb52df92b" title="Função central de resolução recursiva da Constant Pool." alt="" coords="488,206,612,233"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="363,156,495,200,490,202,364,162"/>
+<area shape="rect" id="Node000007" href="$bytecode__utils_8hpp.html#a7e3d12ea5e685c3f0c28d4d5f0dc4ec0" title="Utilitários para leitura segura do vetor de bytecodes (Code attribute)." alt="" coords="519,30,581,57"/>
+<area shape="poly" id="edge10_Node000004_Node000007" title=" " alt="" coords="342,129,396,98,463,67,506,54,502,57,465,72,399,103,345,133"/>
+<area shape="rect" id="Node000008" href="$bytecode__utils_8hpp.html#a8b553ef1a247948ed52bb96a48e26fc9" title=" " alt="" coords="519,81,581,108"/>
+<area shape="poly" id="edge11_Node000004_Node000008" title=" " alt="" coords="382,129,506,103,501,106,384,134"/>
+<area shape="rect" id="Node000009" href="$bytecode__utils_8hpp.html#a0c3811862a538a996a5d0d3c7f6a1dcb" title=" " alt="" coords="518,132,582,158"/>
+<area shape="poly" id="edge12_Node000004_Node000009" title=" " alt="" coords="382,142,505,144,500,146,384,148"/>
+<area shape="poly" id="edge5_Node000005_Node000002" title=" " alt="" coords="612,231,706,253,701,254,613,236"/>
+<area shape="poly" id="edge9_Node000005_Node000003" title=" " alt="" coords="611,203,684,192,783,185,881,192,936,202,931,203,880,197,783,191,685,197,612,208"/>
+<area shape="poly" id="edge6_Node000005_Node000005" title=" " alt="" coords="511,206,504,198,509,188,525,182,550,180,578,182,594,191,589,192,577,188,550,185,526,187,513,192,510,197,516,206"/>
+<area shape="rect" id="Node000006" href="$cp__utils_8hpp.html#a45583237e884e12059bdfba421e869f2" title="Resolve assinaturas de NameAndType." alt="" coords="722,206,843,233"/>
+<area shape="poly" id="edge7_Node000005_Node000006" title=" " alt="" coords="612,217,709,219,704,220,613,222"/>
+<area shape="poly" id="edge8_Node000006_Node000003" title=" " alt="" coords="843,217,916,219,910,220,844,222"/>
+<area shape="rect" id="Node000011" href="$constants_8hpp.html#a12049e571cefb2ba405ccacf0f1f05f9" title=" " alt="" coords="464,358,636,385"/>
+<area shape="poly" id="edge14_Node000010_Node000011" title=" " alt="" coords="384,332,474,354,469,355,384,338"/>
+<area shape="rect" id="Node000012" href="$constants_8hpp.html#a65c9363551d32542894ffb43e4595be9" title=" " alt="" coords="494,308,606,334"/>
+<area shape="poly" id="edge15_Node000010_Node000012" title=" " alt="" coords="416,318,481,320,476,322,417,324"/>
+<area shape="poly" id="edge21_Node000013_Node000003" title=" " alt="" coords="416,436,522,420,636,394,707,373,761,352,879,293,968,243,973,241,882,298,763,357,708,378,637,400,523,425,417,441"/>
+<area shape="rect" id="Node000014" href="$descriptor_8hpp.html#ad2cfe2c4b015da8ba2883fe6611dc220" title="Extrai e formata os parâmetros de um método." alt="" coords="466,460,634,486"/>
+<area shape="poly" id="edge17_Node000013_Node000014" title=" " alt="" coords="416,456,453,462,448,462,416,461"/>
+<area shape="rect" id="Node000016" href="$descriptor_8hpp.html#a64bc828d61c5df7c7c2b07cb6e64e082" title="Extrai e formata o tipo de retorno de um método." alt="" coords="466,510,634,537"/>
+<area shape="poly" id="edge19_Node000013_Node000016" title=" " alt="" coords="359,459,465,496,489,506,484,505,463,501,358,464"/>
+<area shape="rect" id="Node000015" href="$descriptor_8hpp.html#a4d37de51a9b2aca7c1b59e589f40b76d" title="Tradutor de Descritores de Tipo da JVM." alt="" coords="712,485,853,512"/>
+<area shape="poly" id="edge18_Node000014_Node000015" title=" " alt="" coords="634,480,699,489,693,489,634,485"/>
+<area shape="poly" id="edge20_Node000016_Node000015" title=" " alt="" coords="634,512,693,508,699,508,635,517"/>
+</map>

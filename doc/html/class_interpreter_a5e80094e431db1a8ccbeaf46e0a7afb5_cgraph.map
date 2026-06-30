@@ -1,0 +1,29 @@
+<map id="Interpreter::op_getstatic" name="Interpreter::op_getstatic">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,233,165,260"/>
+<area shape="rect" id="Node000002" href="$cp__utils_8hpp.html#ad0f82184d57cb5d39d6ce90e1f946430" title="Resolve o nome de uma Classe." alt="" coords="213,5,409,32"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="89,232,104,196,130,146,166,94,187,70,211,49,234,37,231,41,214,53,191,74,170,97,135,149,109,198,94,234"/>
+<area shape="rect" id="Node000003" href="$cp__utils_8hpp.html#a6c57c52fcdea51fb003c712f304edaff" title="Extrator de Strings Utf8 puras da Constant Pool." alt="" coords="457,31,609,57"/>
+<area shape="poly" id="edge14_Node000001_Node000003" title=" " alt="" coords="92,231,136,167,170,130,211,99,268,74,328,57,387,47,444,43,439,46,388,52,329,62,270,79,214,104,174,133,140,170,96,234"/>
+<area shape="rect" id="Node000004" href="$class_interpreter.html#a7a49c61d4f9234f71f305ae34ae62d3c" title=" " alt="" coords="657,132,823,159"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="96,231,142,185,175,161,212,143,270,126,329,116,390,110,450,108,563,114,658,128,653,130,562,119,450,114,390,115,330,121,271,131,214,148,178,165,146,189,100,234"/>
+<area shape="rect" id="Node000005" href="$class_interpreter.html#ad7145ab2fe96ef206147f5cdbd2bfcca" title=" " alt="" coords="244,157,378,184"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="116,231,212,193,239,187,235,190,214,199,119,235"/>
+<area shape="rect" id="Node000007" href="$struct_value.html#a2265b556754e24583eeda73be12cce80" title=" " alt="" coords="247,208,375,235"/>
+<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="164,235,233,229,229,232,166,240"/>
+<area shape="rect" id="Node000008" href="$struct_value.html#ab193a96e087b1522c03b2b7e547279bc" title=" " alt="" coords="253,259,369,285"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="164,253,240,262,235,265,166,258"/>
+<area shape="rect" id="Node000009" href="$struct_value.html#ac21ab01f7f9f627cef05521d5eab59de" title=" " alt="" coords="260,309,362,336"/>
+<area shape="poly" id="edge9_Node000001_Node000009" title=" " alt="" coords="117,258,214,295,247,306,242,308,212,300,118,263"/>
+<area shape="rect" id="Node000010" href="$struct_value.html#a08f8b1e1d36b47dda65e940226ac4fc2" title=" " alt="" coords="253,360,368,387"/>
+<area shape="poly" id="edge10_Node000001_Node000010" title=" " alt="" coords="100,258,148,302,180,325,214,346,241,358,236,359,211,350,177,330,145,306,99,263"/>
+<area shape="rect" id="Node000011" href="$struct_value.html#a95b22f289b95ae4d926aa94c2b1a6f19" title=" " alt="" coords="270,411,352,437"/>
+<area shape="poly" id="edge11_Node000001_Node000011" title=" " alt="" coords="94,258,140,325,174,364,214,396,257,416,252,416,211,401,170,368,136,329,93,263"/>
+<area shape="rect" id="Node000013" href="$struct_frame.html#a300e5fc3369dac81ce16cb2d97f89890" title=" " alt="" coords="264,461,358,488"/>
+<area shape="poly" id="edge13_Node000001_Node000013" title=" " alt="" coords="91,258,108,297,133,348,168,402,190,426,214,447,251,466,246,466,211,452,186,430,164,405,128,351,103,299,90,263"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="408,27,444,33,439,35,410,32"/>
+<area shape="rect" id="Node000006" href="$class_interpreter.html#a6aa2eb7e653aa224b186b034637ebfb9" title=" " alt="" coords="466,157,600,184"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="377,168,453,170,448,172,379,173"/>
+<area shape="poly" id="edge6_Node000006_Node000004" title=" " alt="" coords="600,160,645,156,639,158,602,165"/>
+<area shape="rect" id="Node000012" href="$struct_value.html#a6bbfce1f64648e1f6e2bd9a1af2e38ce" title=" " alt="" coords="479,411,587,437"/>
+<area shape="poly" id="edge12_Node000011_Node000012" title=" " alt="" coords="352,421,466,424,461,424,352,427"/>
+</map>

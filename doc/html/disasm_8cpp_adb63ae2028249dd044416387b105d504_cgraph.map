@@ -1,0 +1,20 @@
+<map id="disassembleCode" name="disassembleCode">
+<area shape="rect" id="Node000001" title="O loop principal do interpretador de Bytecode (Disassembler)." alt="" coords="5,132,131,159"/>
+<area shape="rect" id="Node000002" href="$cp__utils_8hpp.html#aef9a62716445b12e66d52adfb52df92b" title="Função central de resolução recursiva da Constant Pool." alt="" coords="179,56,302,83"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="97,129,178,92,193,88,189,91,180,97,100,134"/>
+<area shape="rect" id="Node000006" href="$bytecode__utils_8hpp.html#a7e3d12ea5e685c3f0c28d4d5f0dc4ec0" title="Utilitários para leitura segura do vetor de bytecodes (Code attribute)." alt="" coords="209,107,272,133"/>
+<area shape="poly" id="edge8_Node000001_Node000006" title=" " alt="" coords="130,134,197,125,192,128,132,139"/>
+<area shape="rect" id="Node000007" href="$bytecode__utils_8hpp.html#a8b553ef1a247948ed52bb96a48e26fc9" title=" " alt="" coords="209,157,272,184"/>
+<area shape="poly" id="edge9_Node000001_Node000007" title=" " alt="" coords="131,152,197,163,192,165,131,157"/>
+<area shape="rect" id="Node000008" href="$bytecode__utils_8hpp.html#a0c3811862a538a996a5d0d3c7f6a1dcb" title=" " alt="" coords="209,208,272,235"/>
+<area shape="poly" id="edge10_Node000001_Node000008" title=" " alt="" coords="99,157,180,194,197,203,192,203,178,198,98,162"/>
+<area shape="poly" id="edge4_Node000002_Node000002" title=" " alt="" coords="210,55,205,47,209,38,221,32,240,29,261,32,273,41,268,41,259,37,240,35,223,37,213,41,211,47,216,56"/>
+<area shape="rect" id="Node000003" href="$cp__utils_8hpp.html#ad0f82184d57cb5d39d6ce90e1f946430" title="Resolve o nome de uma Classe." alt="" coords="350,5,546,32"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="297,53,378,35,373,37,299,58"/>
+<area shape="rect" id="Node000004" href="$cp__utils_8hpp.html#a6c57c52fcdea51fb003c712f304edaff" title="Extrator de Strings Utf8 puras da Constant Pool." alt="" coords="594,56,747,83"/>
+<area shape="poly" id="edge7_Node000002_Node000004" title=" " alt="" coords="302,67,581,68,577,71,303,72"/>
+<area shape="rect" id="Node000005" href="$cp__utils_8hpp.html#a45583237e884e12059bdfba421e869f2" title="Resolve assinaturas de NameAndType." alt="" coords="388,107,509,133"/>
+<area shape="poly" id="edge5_Node000002_Node000005" title=" " alt="" coords="298,81,378,102,373,103,298,86"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="510,30,597,52,591,52,510,35"/>
+<area shape="poly" id="edge6_Node000005_Node000004" title=" " alt="" coords="508,104,597,86,591,87,510,109"/>
+</map>

@@ -1,0 +1,39 @@
+<map id="main" name="main">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,401,55,428"/>
+<area shape="rect" id="Node000002" href="$class_parser.html#ac78ccfe8239cb81559a81f8248da69ec" title="Executa o pipeline completo de extração dos dados sequenciais do bytecode." alt="" coords="103,401,202,428"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="53,413,89,413,85,417,57,417"/>
+<area shape="rect" id="Node000003" href="$class_parser.html#a67d92e10315e3864735165523142dbaf" title=" " alt="" coords="258,5,434,32"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="153,400,164,326,183,219,212,113,229,71,248,42,255,39,252,43,252,46,234,73,217,114,189,220,169,327,158,401"/>
+<area shape="rect" id="Node000004" href="$class_parser.html#a7bbfde9d88386cd2713874f82fb52e63" title=" " alt="" coords="268,56,424,83"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="151,400,153,344,165,261,177,216,194,171,218,129,248,93,257,88,254,92,252,97,222,132,199,174,182,218,170,263,158,345,156,401"/>
+<area shape="rect" id="Node000005" href="$class_parser.html#a9f62540349abae3ba0a7d24410923031" title=" " alt="" coords="251,107,441,133"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="152,401,157,352,171,283,184,245,200,208,221,174,248,143,256,139,253,144,252,147,226,177,205,211,189,247,176,284,162,353,157,402"/>
+<area shape="rect" id="Node000006" href="$class_parser.html#a7564d65039da1a164495b3743c09776f" title="Extrai a Pool de Constantes resolvendo a anomalia do tipo Long/Double. De acordo com a especificação ..." alt="" coords="257,157,435,184"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="153,400,161,360,178,304,206,245,225,218,248,194,256,190,253,194,252,198,229,221,211,248,183,306,166,361,158,402"/>
+<area shape="rect" id="Node000007" href="$class_parser.html#a5cecb8b09dbb571991e0acf7d5302ae9" title=" " alt="" coords="257,208,435,251"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="156,400,188,334,215,295,248,261,256,257,253,261,252,265,219,298,193,336,161,402"/>
+<area shape="rect" id="Node000008" href="$class_parser.html#a40a78c2b539c9dbf1f4950f8880b52c1" title=" " alt="" coords="279,275,413,301"/>
+<area shape="poly" id="edge7_Node000002_Node000008" title=" " alt="" coords="161,399,196,356,221,332,249,311,266,304,262,308,251,316,224,336,200,359,165,402"/>
+<area shape="rect" id="Node000009" href="$class_parser.html#aa545133f2d1f604ed6712f7d289c8d11" title=" " alt="" coords="262,325,431,352"/>
+<area shape="poly" id="edge8_Node000002_Node000009" title=" " alt="" coords="175,399,249,362,272,355,268,359,251,366,178,403"/>
+<area shape="rect" id="Node000010" href="$class_parser.html#ab19d1944bddb8091a790a38c340ef5de" title=" " alt="" coords="268,376,425,403"/>
+<area shape="poly" id="edge9_Node000002_Node000010" title=" " alt="" coords="201,406,254,400,250,403,204,410"/>
+<area shape="rect" id="Node000011" href="$class_parser.html#a6f19073df35c4346ebe617de6692df65" title=" " alt="" coords="250,427,442,453"/>
+<area shape="poly" id="edge10_Node000002_Node000011" title=" " alt="" coords="201,419,237,424,232,427,203,424"/>
+<area shape="rect" id="Node000012" href="$class_parser.html#aae3da45d1a40ec1a502d805c7fcdf9bf" title="Valida a assinatura (Magic Number) do arquivo. Todo arquivo compilado para a JVM deve,..." alt="" coords="279,477,413,504"/>
+<area shape="poly" id="edge11_Node000002_Node000012" title=" " alt="" coords="176,426,251,463,273,472,268,473,249,468,177,431"/>
+<area shape="rect" id="Node000013" href="$class_parser.html#ae85a89af469ccc7f926a1be2e7ada52b" title=" " alt="" coords="259,528,433,555"/>
+<area shape="poly" id="edge12_Node000002_Node000013" title=" " alt="" coords="163,426,200,470,224,494,251,514,264,521,258,522,249,518,221,498,196,474,163,431"/>
+<area shape="rect" id="Node000014" href="$class_parser.html#ac0bcffdaa249570e3a1d65ecc8835e26" title="Lê e estrutura a tabela de métodos, com foco no atributo &#39;Code&#39;. É o principal da extração lógica: id..." alt="" coords="272,579,421,605"/>
+<area shape="poly" id="edge13_Node000002_Node000014" title=" " alt="" coords="159,426,173,456,192,494,218,532,252,565,260,571,255,572,248,569,214,535,187,496,168,459,158,431"/>
+<area shape="rect" id="Node000016" href="$class_parser.html#a0dd11c7bfea656903b638a701a47af52" title=" " alt="" coords="254,629,438,656"/>
+<area shape="poly" id="edge15_Node000002_Node000016" title=" " alt="" coords="156,426,168,465,185,516,212,570,230,594,252,615,258,621,253,621,248,619,226,598,208,573,180,518,163,467,156,431"/>
+<area shape="rect" id="Node000017" href="$class_parser.html#a74a3113fc449f905d366617f9248a567" title=" " alt="" coords="259,680,433,707"/>
+<area shape="poly" id="edge16_Node000002_Node000017" title=" " alt="" coords="155,426,163,474,179,538,191,573,207,607,227,639,252,666,257,672,252,671,248,670,223,642,202,610,186,575,173,540,158,475,154,431"/>
+<area shape="rect" id="Node000018" href="$class_parser.html#a2d84b09a3aac824655ee84a3b4cce990" title=" " alt="" coords="262,731,430,757"/>
+<area shape="poly" id="edge17_Node000002_Node000018" title=" " alt="" coords="154,426,160,482,172,560,184,602,201,644,223,683,252,717,256,722,251,721,248,721,219,686,196,646,179,604,167,561,154,483,153,431"/>
+<area shape="rect" id="Node000019" href="$class_parser.html#af66078011d1629b0c5b929dbd1fc30e7" title=" " alt="" coords="267,781,425,808"/>
+<area shape="poly" id="edge18_Node000002_Node000019" title=" " alt="" coords="154,426,156,490,166,581,178,631,195,681,220,727,252,768,256,774,251,772,248,771,215,730,190,683,173,633,161,582,151,490,152,431"/>
+<area shape="rect" id="Node000015" href="$class_parser.html#a0df1e5839a20e13a923dbb1d23e1b051" title=" " alt="" coords="490,579,654,605"/>
+<area shape="poly" id="edge14_Node000014_Node000015" title=" " alt="" coords="421,589,477,591,472,593,422,595"/>
+</map>

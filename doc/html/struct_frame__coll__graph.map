@@ -1,0 +1,9 @@
+<map id="Frame" name="Frame">
+<area shape="rect" id="Node000001" title=" " alt="" coords="127,104,185,131"/>
+<area shape="rect" id="Node000002" href="$structclass__info.html" title="Nó raiz da estrutura do arquivo .class. Contém toda a hierarquia de dados extraída do binário." alt="" coords="5,5,86,32"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="72,40,144,102,139,105,70,45"/>
+<area shape="rect" id="Node000003" href="$structmethod__info.html" title=" " alt="" coords="110,5,202,32"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="158,46,159,105,154,103,154,49"/>
+<area shape="rect" id="Node000004" href="$structcode__attribute.html" title=" " alt="" coords="226,5,329,32"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="257,42,214,82,179,106,176,101,211,78,252,44"/>
+</map>

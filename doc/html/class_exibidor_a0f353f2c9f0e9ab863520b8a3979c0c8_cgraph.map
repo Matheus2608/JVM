@@ -1,0 +1,12 @@
+<map id="Exibidor::getMethodSignature" name="Exibidor::getMethodSignature">
+<area shape="rect" id="Node000001" title="Traduz as strings difíceis da JVM para uma assinatura de método Java tradicional." alt="" coords="5,56,198,83"/>
+<area shape="rect" id="Node000002" href="$descriptor_8hpp.html#ad2cfe2c4b015da8ba2883fe6611dc220" title="Extrai e formata os parâmetros de um método." alt="" coords="246,5,414,32"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="164,53,254,35,249,37,166,58"/>
+<area shape="rect" id="Node000004" href="$descriptor_8hpp.html#a64bc828d61c5df7c7c2b07cb6e64e082" title="Extrai e formata o tipo de retorno de um método." alt="" coords="246,56,414,83"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="198,67,232,69,227,70,198,72"/>
+<area shape="rect" id="Node000005" href="$cp__utils_8hpp.html#a6c57c52fcdea51fb003c712f304edaff" title="Extrator de Strings Utf8 puras da Constant Pool." alt="" coords="254,107,406,133"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="165,81,254,102,249,103,165,86"/>
+<area shape="rect" id="Node000003" href="$descriptor_8hpp.html#a4d37de51a9b2aca7c1b59e589f40b76d" title="Tradutor de Descritores de Tipo da JVM." alt="" coords="462,31,603,57"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="414,27,449,33,444,33,414,32"/>
+<area shape="poly" id="edge4_Node000004_Node000003" title=" " alt="" coords="414,56,449,54,444,55,415,61"/>
+</map>
