@@ -741,40 +741,357 @@ void Interpreter::op_dcmpg() {
 // Stubs para opcodes ainda não implementados
 // (substituir pelo corpo real à medida que o projeto avança)
 
-void Interpreter::op_lload()   {} void Interpreter::op_lload_0() {} void Interpreter::op_lload_1() {}
-void Interpreter::op_lload_2() {} void Interpreter::op_lload_3() {}
-void Interpreter::op_fload()   {} void Interpreter::op_fload_0() {} void Interpreter::op_fload_1() {}
-void Interpreter::op_fload_2() {} void Interpreter::op_fload_3() {}
-void Interpreter::op_dload()   {} void Interpreter::op_dload_0() {} void Interpreter::op_dload_1() {}
-void Interpreter::op_dload_2() {} void Interpreter::op_dload_3() {}
-void Interpreter::op_aload()   {} void Interpreter::op_aload_0() {} void Interpreter::op_aload_1() {}
-void Interpreter::op_aload_2() {} void Interpreter::op_aload_3() {}
-void Interpreter::op_lstore()  {} void Interpreter::op_lstore_0(){} void Interpreter::op_lstore_1(){}
-void Interpreter::op_lstore_2(){} void Interpreter::op_lstore_3(){}
-void Interpreter::op_fstore()  {} void Interpreter::op_fstore_0(){} void Interpreter::op_fstore_1(){}
-void Interpreter::op_fstore_2(){} void Interpreter::op_fstore_3(){}
-void Interpreter::op_dstore()  {} void Interpreter::op_dstore_0(){} void Interpreter::op_dstore_1(){}
-void Interpreter::op_dstore_2(){} void Interpreter::op_dstore_3(){}
-void Interpreter::op_astore()  {} void Interpreter::op_astore_0(){} void Interpreter::op_astore_1(){}
-void Interpreter::op_astore_2(){} void Interpreter::op_astore_3(){}
+// lload/fload/dload/aload e lstore/fstore/dstore/astore — mesmo padrão de
+// iload/istore acima (Value carrega seu próprio tipo, então push/pop direto
+// do slot funciona para qualquer tipo). Tarefa da Pessoa 3 (load/store de
+// locais); implementado aqui porque sem isso era impossível testar fim-a-fim
+// as conversões e a aritmética float/double/long que dependem de locais.
+void Interpreter::op_lload_0() { Frame& f = currentFrame(); f.push(f.locals[0]); }
+void Interpreter::op_lload_1() { Frame& f = currentFrame(); f.push(f.locals[1]); }
+void Interpreter::op_lload_2() { Frame& f = currentFrame(); f.push(f.locals[2]); }
+void Interpreter::op_lload_3() { Frame& f = currentFrame(); f.push(f.locals[3]); }
+void Interpreter::op_lload()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.push(f.locals[idx]); }
+
+void Interpreter::op_fload_0() { Frame& f = currentFrame(); f.push(f.locals[0]); }
+void Interpreter::op_fload_1() { Frame& f = currentFrame(); f.push(f.locals[1]); }
+void Interpreter::op_fload_2() { Frame& f = currentFrame(); f.push(f.locals[2]); }
+void Interpreter::op_fload_3() { Frame& f = currentFrame(); f.push(f.locals[3]); }
+void Interpreter::op_fload()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.push(f.locals[idx]); }
+
+void Interpreter::op_dload_0() { Frame& f = currentFrame(); f.push(f.locals[0]); }
+void Interpreter::op_dload_1() { Frame& f = currentFrame(); f.push(f.locals[1]); }
+void Interpreter::op_dload_2() { Frame& f = currentFrame(); f.push(f.locals[2]); }
+void Interpreter::op_dload_3() { Frame& f = currentFrame(); f.push(f.locals[3]); }
+void Interpreter::op_dload()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.push(f.locals[idx]); }
+
+void Interpreter::op_aload_0() { Frame& f = currentFrame(); f.push(f.locals[0]); }
+void Interpreter::op_aload_1() { Frame& f = currentFrame(); f.push(f.locals[1]); }
+void Interpreter::op_aload_2() { Frame& f = currentFrame(); f.push(f.locals[2]); }
+void Interpreter::op_aload_3() { Frame& f = currentFrame(); f.push(f.locals[3]); }
+void Interpreter::op_aload()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.push(f.locals[idx]); }
+
+void Interpreter::op_lstore_0() { Frame& f = currentFrame(); f.locals[0] = f.pop(); }
+void Interpreter::op_lstore_1() { Frame& f = currentFrame(); f.locals[1] = f.pop(); }
+void Interpreter::op_lstore_2() { Frame& f = currentFrame(); f.locals[2] = f.pop(); }
+void Interpreter::op_lstore_3() { Frame& f = currentFrame(); f.locals[3] = f.pop(); }
+void Interpreter::op_lstore()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.locals[idx] = f.pop(); }
+
+void Interpreter::op_fstore_0() { Frame& f = currentFrame(); f.locals[0] = f.pop(); }
+void Interpreter::op_fstore_1() { Frame& f = currentFrame(); f.locals[1] = f.pop(); }
+void Interpreter::op_fstore_2() { Frame& f = currentFrame(); f.locals[2] = f.pop(); }
+void Interpreter::op_fstore_3() { Frame& f = currentFrame(); f.locals[3] = f.pop(); }
+void Interpreter::op_fstore()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.locals[idx] = f.pop(); }
+
+void Interpreter::op_dstore_0() { Frame& f = currentFrame(); f.locals[0] = f.pop(); }
+void Interpreter::op_dstore_1() { Frame& f = currentFrame(); f.locals[1] = f.pop(); }
+void Interpreter::op_dstore_2() { Frame& f = currentFrame(); f.locals[2] = f.pop(); }
+void Interpreter::op_dstore_3() { Frame& f = currentFrame(); f.locals[3] = f.pop(); }
+void Interpreter::op_dstore()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.locals[idx] = f.pop(); }
+
+void Interpreter::op_astore_0() { Frame& f = currentFrame(); f.locals[0] = f.pop(); }
+void Interpreter::op_astore_1() { Frame& f = currentFrame(); f.locals[1] = f.pop(); }
+void Interpreter::op_astore_2() { Frame& f = currentFrame(); f.locals[2] = f.pop(); }
+void Interpreter::op_astore_3() { Frame& f = currentFrame(); f.locals[3] = f.pop(); }
+void Interpreter::op_astore()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.locals[idx] = f.pop(); }
 
 void Interpreter::op_iand()    {} void Interpreter::op_ior()     {} void Interpreter::op_ixor()    {}
 void Interpreter::op_ishl()    {} void Interpreter::op_ishr()    {} void Interpreter::op_iushr()   {}
 void Interpreter::op_pop()     {} void Interpreter::op_pop2()    {}
 void Interpreter::op_dup()     {} void Interpreter::op_dup_x1()  {} void Interpreter::op_dup_x2()  {}
 void Interpreter::op_dup2()    {} void Interpreter::op_swap()    {}
-void Interpreter::op_i2l()     {} void Interpreter::op_i2f()     {} void Interpreter::op_i2d()     {}
-void Interpreter::op_l2i()     {} void Interpreter::op_l2f()     {} void Interpreter::op_l2d()     {}
-void Interpreter::op_f2i()     {} void Interpreter::op_f2l()     {} void Interpreter::op_f2d()     {}
-void Interpreter::op_d2i()     {} void Interpreter::op_d2l()     {} void Interpreter::op_d2f()     {}
-void Interpreter::op_i2b()     {} void Interpreter::op_i2c()     {} void Interpreter::op_i2s()     {}
-void Interpreter::op_ifeq()    {} void Interpreter::op_ifne()    {} void Interpreter::op_iflt()    {}
-void Interpreter::op_ifge()    {} void Interpreter::op_ifgt()    {} void Interpreter::op_ifle()    {}
-void Interpreter::op_if_icmpeq(){} void Interpreter::op_if_icmpne(){} void Interpreter::op_if_icmplt(){}
-void Interpreter::op_if_icmpge(){} void Interpreter::op_if_icmpgt(){} void Interpreter::op_if_icmple(){}
-void Interpreter::op_ifnull()  {} void Interpreter::op_ifnonnull(){}
-void Interpreter::op_if_acmpeq(){} void Interpreter::op_if_acmpne(){}
-void Interpreter::op_goto_w()  {} void Interpreter::op_tableswitch() {} void Interpreter::op_lookupswitch() {}
+// Conversões f2i/f2l/d2i/d2l seguem a JLS: NaN vira 0 e valores fora da faixa
+// do tipo destino saturam em MIN/MAX em vez de dar overflow indefinido (o que
+// static_cast faria em C++).
+namespace {
+int32_t floatToInt(float v) {
+    if (std::isnan(v)) return 0;
+    if (v >= 2147483647.0f)  return INT32_MAX;
+    if (v <= -2147483648.0f) return INT32_MIN;
+    return static_cast<int32_t>(v);
+}
+int64_t floatToLong(float v) {
+    if (std::isnan(v)) return 0;
+    if (v >= 9223372036854775807.0f)  return INT64_MAX;
+    if (v <= -9223372036854775808.0f) return INT64_MIN;
+    return static_cast<int64_t>(v);
+}
+int32_t doubleToInt(double v) {
+    if (std::isnan(v)) return 0;
+    if (v >= 2147483647.0)  return INT32_MAX;
+    if (v <= -2147483648.0) return INT32_MIN;
+    return static_cast<int32_t>(v);
+}
+int64_t doubleToLong(double v) {
+    if (std::isnan(v)) return 0;
+    if (v >= 9223372036854775807.0)  return INT64_MAX;
+    if (v <= -9223372036854775808.0) return INT64_MIN;
+    return static_cast<int64_t>(v);
+}
+} // namespace
+
+void Interpreter::op_i2l() {
+    Frame& f = currentFrame();
+    int32_t v = f.pop().data.i;
+    f.push(Value::fromLong(static_cast<int64_t>(v)));
+}
+
+void Interpreter::op_i2f() {
+    Frame& f = currentFrame();
+    int32_t v = f.pop().data.i;
+    f.push(Value::fromFloat(static_cast<float>(v)));
+}
+
+void Interpreter::op_i2d() {
+    Frame& f = currentFrame();
+    int32_t v = f.pop().data.i;
+    f.push(Value::fromDouble(static_cast<double>(v)));
+}
+
+void Interpreter::op_l2i() {
+    Frame& f = currentFrame();
+    int64_t v = f.pop().data.l;
+    f.push(Value::fromInt(static_cast<int32_t>(v)));
+}
+
+void Interpreter::op_l2f() {
+    Frame& f = currentFrame();
+    int64_t v = f.pop().data.l;
+    f.push(Value::fromFloat(static_cast<float>(v)));
+}
+
+void Interpreter::op_l2d() {
+    Frame& f = currentFrame();
+    int64_t v = f.pop().data.l;
+    f.push(Value::fromDouble(static_cast<double>(v)));
+}
+
+void Interpreter::op_f2i() {
+    Frame& f = currentFrame();
+    float v = f.pop().data.f;
+    f.push(Value::fromInt(floatToInt(v)));
+}
+
+void Interpreter::op_f2l() {
+    Frame& f = currentFrame();
+    float v = f.pop().data.f;
+    f.push(Value::fromLong(floatToLong(v)));
+}
+
+void Interpreter::op_f2d() {
+    Frame& f = currentFrame();
+    float v = f.pop().data.f;
+    f.push(Value::fromDouble(static_cast<double>(v)));
+}
+
+void Interpreter::op_d2i() {
+    Frame& f = currentFrame();
+    double v = f.pop().data.d;
+    f.push(Value::fromInt(doubleToInt(v)));
+}
+
+void Interpreter::op_d2l() {
+    Frame& f = currentFrame();
+    double v = f.pop().data.d;
+    f.push(Value::fromLong(doubleToLong(v)));
+}
+
+void Interpreter::op_d2f() {
+    Frame& f = currentFrame();
+    double v = f.pop().data.d;
+    f.push(Value::fromFloat(static_cast<float>(v)));
+}
+
+void Interpreter::op_i2b() {
+    Frame& f = currentFrame();
+    int32_t v = f.pop().data.i;
+    f.push(Value::fromInt(static_cast<int32_t>(static_cast<int8_t>(v))));
+}
+
+void Interpreter::op_i2c() {
+    Frame& f = currentFrame();
+    int32_t v = f.pop().data.i;
+    f.push(Value::fromInt(static_cast<int32_t>(static_cast<uint16_t>(v))));
+}
+
+void Interpreter::op_i2s() {
+    Frame& f = currentFrame();
+    int32_t v = f.pop().data.i;
+    f.push(Value::fromInt(static_cast<int32_t>(static_cast<int16_t>(v))));
+}
+
+// ifeq/ifne/.../ifle — comparam o int do topo da pilha com zero e desviam se
+// a condição for satisfeita. O offset é relativo ao endereço do opcode, então
+// usamos branch() para compensar os 3 bytes (opcode + 2 de operando) já lidos.
+void Interpreter::op_ifeq() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (f.pop().data.i == 0) branch(offset);
+}
+
+void Interpreter::op_ifne() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (f.pop().data.i != 0) branch(offset);
+}
+
+void Interpreter::op_iflt() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (f.pop().data.i < 0) branch(offset);
+}
+
+void Interpreter::op_ifge() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (f.pop().data.i >= 0) branch(offset);
+}
+
+void Interpreter::op_ifgt() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (f.pop().data.i > 0) branch(offset);
+}
+
+void Interpreter::op_ifle() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (f.pop().data.i <= 0) branch(offset);
+}
+
+// if_icmp* — comparam dois ints desempilhados (a = segundo no topo, b = topo).
+void Interpreter::op_if_icmpeq() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    if (a == b) branch(offset);
+}
+
+void Interpreter::op_if_icmpne() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    if (a != b) branch(offset);
+}
+
+void Interpreter::op_if_icmplt() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    if (a < b) branch(offset);
+}
+
+void Interpreter::op_if_icmpge() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    if (a >= b) branch(offset);
+}
+
+void Interpreter::op_if_icmpgt() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    if (a > b) branch(offset);
+}
+
+void Interpreter::op_if_icmple() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    if (a <= b) branch(offset);
+}
+
+// ifnull/ifnonnull — testam a referência do topo contra null (ref == 0).
+void Interpreter::op_ifnull() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (heap_.isNull(f.pop().data.ref)) branch(offset);
+}
+
+void Interpreter::op_ifnonnull() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    if (!heap_.isNull(f.pop().data.ref)) branch(offset);
+}
+
+// if_acmpeq/if_acmpne — comparam duas referências por igualdade de índice no heap.
+void Interpreter::op_if_acmpeq() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.ref;
+    int32_t a = f.pop().data.ref;
+    if (a == b) branch(offset);
+}
+
+void Interpreter::op_if_acmpne() {
+    Frame& f = currentFrame();
+    int16_t offset = fetchS2();
+    int32_t b = f.pop().data.ref;
+    int32_t a = f.pop().data.ref;
+    if (a != b) branch(offset);
+}
+
+// goto_w — igual a goto, mas com offset de 4 bytes (alcance além de 64KB).
+void Interpreter::op_goto_w() {
+    int32_t offset = fetchS4();
+    Frame& f = currentFrame();
+    f.pc += offset - 5; // -5 = opcode (1) + operando de 4 bytes
+}
+
+// tableswitch — salto indexado: se `index` estiver em [low, high], desvia
+// para o offset da tabela correspondente; caso contrário, usa o default.
+// Os offsets são relativos ao endereço do próprio opcode (`start`).
+void Interpreter::op_tableswitch() {
+    Frame& f = currentFrame();
+    size_t start = f.pc - 1; // endereço do opcode (fetchU1() já avançou o pc)
+    while (f.pc % 4 != 0) f.pc++; // pula bytes de padding até alinhamento de 4
+
+    int32_t def  = fetchS4();
+    int32_t low  = fetchS4();
+    int32_t high = fetchS4();
+
+    int32_t index = f.pop().data.i;
+
+    int32_t offset;
+    if (index < low || index > high) {
+        offset = def;
+    } else {
+        f.pc += static_cast<size_t>(index - low) * 4; // pula até a entrada certa
+        offset = fetchS4();
+    }
+
+    f.pc = start + static_cast<size_t>(offset);
+}
+
+// lookupswitch — salto por tabela de pares (match, offset); usa default se
+// nenhum match for encontrado.
+void Interpreter::op_lookupswitch() {
+    Frame& f = currentFrame();
+    size_t start = f.pc - 1;
+    while (f.pc % 4 != 0) f.pc++;
+
+    int32_t def    = fetchS4();
+    int32_t npairs = fetchS4();
+
+    int32_t key = f.pop().data.i;
+    int32_t offset = def;
+    for (int32_t j = 0; j < npairs; j++) {
+        int32_t match = fetchS4();
+        int32_t off   = fetchS4();
+        if (match == key) {
+            offset = off;
+            break;
+        }
+    }
+
+    f.pc = start + static_cast<size_t>(offset);
+}
 void Interpreter::op_lreturn() {} void Interpreter::op_freturn() {}
 void Interpreter::op_dreturn() {} void Interpreter::op_areturn() {}
 void Interpreter::op_invokestatic()    {} void Interpreter::op_invokespecial()   {}
