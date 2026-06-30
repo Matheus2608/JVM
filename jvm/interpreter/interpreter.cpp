@@ -927,13 +927,149 @@ void Interpreter::op_newarray() {
     f.push(Value::fromRef(ref));
 }
 
-void Interpreter::op_anewarray()   {} void Interpreter::op_arraylength() {}
-void Interpreter::op_iaload()  {} void Interpreter::op_iastore() {}
+// anewarray — cria um array de referências e empilha sua referência.
+// Operando: índice u2 para um CONSTANT_Class (tipo dos elementos); o tamanho
+// vem do topo da pilha.
+void Interpreter::op_anewarray() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+    std::string element_class = classNameFromConstantPool(*f.cls, cp_index);
+
+    int32_t length = f.pop().data.i;
+    int32_t ref = heap_.allocateRefArray(element_class, length);
+    f.push(Value::fromRef(ref));
+}
+
+// arraylength — desempilha uma referência de array e empilha seu comprimento.
+void Interpreter::op_arraylength() {
+    Frame& f = currentFrame();
+    int32_t ref = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromInt(heap_.arrayLength(ref)));
+}
+
+// iaload — empilha o elemento int de um array. Pilha: ..., arrayref, index → ..., value
+void Interpreter::op_iaload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromInt(heap_.getElement(ref, index).data.i));
+}
+
+// iastore — armazena um int em um array. Pilha: ..., arrayref, index, value → ...
+void Interpreter::op_iastore() {
+    Frame& f = currentFrame();
+    int32_t value = f.pop().data.i;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromInt(value));
+}
+
 void Interpreter::op_laload()  {} void Interpreter::op_lastore() {}
 void Interpreter::op_faload()  {} void Interpreter::op_fastore() {}
 void Interpreter::op_daload()  {} void Interpreter::op_dastore() {}
-void Interpreter::op_aaload()  {} void Interpreter::op_aastore() {}
+
+// aaload — empilha o elemento (referência) de um array de objetos.
+void Interpreter::op_aaload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(heap_.getElement(ref, index));
+}
+
+// aastore — armazena uma referência em um array de objetos.
+void Interpreter::op_aastore() {
+    Frame& f = currentFrame();
+    Value   value = f.pop();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, value);
+}
+
 void Interpreter::op_baload()  {} void Interpreter::op_bastore() {}
 void Interpreter::op_caload()  {} void Interpreter::op_castore() {}
 void Interpreter::op_saload()  {} void Interpreter::op_sastore() {}
-void Interpreter::op_athrow()    {} void Interpreter::op_checkcast()  {} void Interpreter::op_instanceof() {}
+
+// Helper local: percorre a cadeia de superclasses verificando se `sub` é
+// subtipo de `target`. Usado por checkcast e instanceof. Tudo que herda de
+// java/lang/Object é subtipo dela mesmo quando a stdlib não está no classpath.
+namespace {
+bool isSubtypeOf(ClassLoader& loader, const std::string& sub, const std::string& target) {
+    if (sub == target || target == "java/lang/Object")
+        return true;
+
+    std::string current = sub;
+    while (true) {
+        const class_info* cls = nullptr;
+        try {
+            cls = &loader.load(current);
+        } catch (...) {
+            return false; // classe não encontrada no classpath
+        }
+
+        if (cls->super_class == 0)
+            return false; // chegamos em java/lang/Object sem casar
+
+        std::string super = classNameFromConstantPool(*cls, cls->super_class);
+        if (super == target)
+            return true;
+        if (super == "java/lang/Object")
+            return false;
+        current = super;
+    }
+}
+} // namespace
+
+// athrow — desempilha a referência da exceção e a propaga.
+// Sem tabela de exception handlers, traduzimos para um erro do host com o
+// nome da classe lançada.
+void Interpreter::op_athrow() {
+    Frame& f = currentFrame();
+    int32_t ref = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    throw std::runtime_error("Exception lancada: " + heap_.object(ref).class_name);
+}
+
+// checkcast — verifica se o objeto no topo pode ser convertido para a classe
+// alvo. A referência NÃO é desempilhada; null passa em qualquer cast.
+void Interpreter::op_checkcast() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    int32_t ref = f.top().data.ref; // peek: o valor permanece na pilha
+    if (heap_.isNull(ref))
+        return;
+
+    std::string target = classNameFromConstantPool(*f.cls, cp_index);
+    std::string actual = heap_.object(ref).class_name;
+    if (!isSubtypeOf(loader_, actual, target))
+        throw std::runtime_error("ClassCastException: " + actual +
+                                 " nao pode ser convertido para " + target);
+}
+
+// instanceof — desempilha a referência e empilha 1 se for instância da classe
+// alvo, 0 caso contrário (ou se for null).
+void Interpreter::op_instanceof() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    int32_t ref = f.pop().data.ref;
+    if (heap_.isNull(ref)) {
+        f.push(Value::fromInt(0));
+        return;
+    }
+
+    std::string target = classNameFromConstantPool(*f.cls, cp_index);
+    std::string actual = heap_.object(ref).class_name;
+    f.push(Value::fromInt(isSubtypeOf(loader_, actual, target) ? 1 : 0));
+}
