@@ -1233,11 +1233,253 @@ void Interpreter::op_lookupswitch() {
 
     f.pc = start + static_cast<size_t>(offset);
 }
-void Interpreter::op_lreturn() {} void Interpreter::op_freturn() {}
-void Interpreter::op_dreturn() {} void Interpreter::op_areturn() {}
-void Interpreter::op_invokestatic()    {} void Interpreter::op_invokespecial()   {}
-void Interpreter::op_invokeinterface() {}
-void Interpreter::op_getfield()  {} void Interpreter::op_putfield()  {}
+// lreturn/freturn/dreturn/areturn — idênticos a ireturn: Value carrega seu
+// próprio tipo, então basta desempilhar o valor, descartar o frame atual e
+// reempilhá-lo no frame do chamador (se houver).
+void Interpreter::op_lreturn() {
+    Value retval = frame_stack_.top().pop();
+    frame_stack_.pop();
+    if (!frame_stack_.empty())
+        frame_stack_.top().push(retval);
+}
+
+void Interpreter::op_freturn() {
+    Value retval = frame_stack_.top().pop();
+    frame_stack_.pop();
+    if (!frame_stack_.empty())
+        frame_stack_.top().push(retval);
+}
+
+void Interpreter::op_dreturn() {
+    Value retval = frame_stack_.top().pop();
+    frame_stack_.pop();
+    if (!frame_stack_.empty())
+        frame_stack_.top().push(retval);
+}
+
+void Interpreter::op_areturn() {
+    Value retval = frame_stack_.top().pop();
+    frame_stack_.pop();
+    if (!frame_stack_.empty())
+        frame_stack_.top().push(retval);
+}
+
+// -----------------------------------------------------------------------------
+// Helpers de invocação de métodos (locais a este arquivo)
+//
+// Cada argumento ocupa um único Value na pilha de operandos deste interpretador
+// (long/double inclusive). Porém, nas variáveis locais, o javac assume que
+// long/double consomem 2 slots — por isso o índice do slot avança conforme a
+// "largura" de cada parâmetro, ainda que apenas um Value seja copiado.
+// -----------------------------------------------------------------------------
+namespace {
+
+// Largura em slots de cada parâmetro do descritor (long/double = 2, resto = 1).
+std::vector<int> parseParamWidths(const std::string& descriptor) {
+    std::vector<int> widths;
+    size_t i = 1; // pula '('
+    while (i < descriptor.size() && descriptor[i] != ')') {
+        char c = descriptor[i];
+        if (c == '[') { i++; continue; }          // prefixo de array; a ref é category 1
+        if (c == 'L') {                            // objeto: consome até ';'
+            while (i < descriptor.size() && descriptor[i] != ';') i++;
+            i++;                                   // pula ';'
+            widths.push_back(1);
+            continue;
+        }
+        widths.push_back((c == 'J' || c == 'D') ? 2 : 1); // long/double = category 2
+        i++;
+    }
+    return widths;
+}
+
+// Localiza o atributo Code de um método (mesma lógica de Interpreter::findCode).
+const code_attribute* findCodeOf(const method_info& method) {
+    for (const attribute_info& attr : method.attributes)
+        if (attr.code_data)
+            return attr.code_data.get();
+    return nullptr;
+}
+
+// Resolve um método percorrendo a classe e suas superclasses. Em caso de
+// sucesso, *decl recebe a classe onde o método foi efetivamente encontrado.
+const method_info* resolveMethod(ClassLoader& loader, const class_info& start,
+                                 const std::string& name, const std::string& descriptor,
+                                 const class_info** decl) {
+    const class_info* cls = &start;
+    while (true) {
+        if (const method_info* m = findMethod(*cls, name, descriptor)) {
+            if (decl) *decl = cls;
+            return m;
+        }
+        if (cls->super_class == 0)
+            return nullptr;
+        std::string super = classNameFromConstantPool(*cls, cls->super_class);
+        try {
+            cls = &loader.load(super);
+        } catch (...) {
+            return nullptr;
+        }
+    }
+}
+
+// Monta o frame do método chamado a partir dos argumentos já isolados e o
+// empilha. `self` é Value::null() para chamadas estáticas.
+void pushCalleeFrame(FrameStack& fs, const class_info& decl, const method_info& method,
+                     const code_attribute* code, const std::vector<Value>& args,
+                     const std::vector<int>& widths, bool hasThis, Value self) {
+    Frame nf;
+    nf.cls    = &decl;
+    nf.method = &method;
+    nf.code   = code;
+    nf.pc     = 0;
+    nf.locals.assign(code->max_locals, Value::fromInt(0));
+
+    int slot = 0;
+    if (hasThis)
+        nf.locals[slot++] = self;
+    for (size_t k = 0; k < args.size(); k++) {
+        nf.locals[slot] = args[k];
+        slot += widths[k];
+    }
+    fs.push(std::move(nf));
+}
+
+// Invocação estática: sem receiver. Resolve o método e empilha o frame.
+void invokeStaticMethod(ClassLoader& loader, FrameStack& fs,
+                        const std::string& class_name, const std::string& name,
+                        const std::string& descriptor) {
+    Frame& caller = fs.top();
+    std::vector<int> widths = parseParamWidths(descriptor);
+    std::vector<Value> args(widths.size());
+    for (size_t k = widths.size(); k-- > 0; )
+        args[k] = caller.pop();
+
+    const class_info* target = nullptr;
+    try { target = &loader.load(class_name); } catch (...) { target = nullptr; }
+
+    const class_info* decl = nullptr;
+    const method_info* m = target ? resolveMethod(loader, *target, name, descriptor, &decl) : nullptr;
+    const code_attribute* code = m ? findCodeOf(*m) : nullptr;
+    if (!m || !code)
+        throw std::runtime_error("invokestatic: metodo nao encontrado ou sem Code: " +
+                                 class_name + "." + name + descriptor);
+
+    pushCalleeFrame(fs, *decl, *m, code, args, widths, false, Value::null());
+}
+
+// Invocação de instância (special/virtual/interface). Em virtualDispatch a
+// resolução parte da classe real do receiver no heap; caso contrário, da classe
+// estática do constant pool. Métodos sem corpo (ex.: java/lang/Object.<init> ou
+// nativos) viram no-op — os argumentos e o receiver já foram desempilhados.
+void invokeInstanceMethod(ClassLoader& loader, FrameStack& fs, Heap& heap,
+                          const std::string& static_class, const std::string& name,
+                          const std::string& descriptor, bool virtualDispatch) {
+    Frame& caller = fs.top();
+    std::vector<int> widths = parseParamWidths(descriptor);
+    std::vector<Value> args(widths.size());
+    for (size_t k = widths.size(); k-- > 0; )
+        args[k] = caller.pop();
+    Value self = caller.pop();
+
+    if (heap.isNull(self.data.ref))
+        throw std::runtime_error("NullPointerException");
+
+    std::string start_class = static_class;
+    if (virtualDispatch) {
+        // Despacho dinâmico: usa a classe concreta do objeto referenciado.
+        try { start_class = heap.object(self.data.ref).class_name; } catch (...) {}
+    }
+
+    const class_info* target = nullptr;
+    try { target = &loader.load(start_class); } catch (...) { target = nullptr; }
+
+    const class_info* decl = nullptr;
+    const method_info* m = target ? resolveMethod(loader, *target, name, descriptor, &decl) : nullptr;
+    const code_attribute* code = m ? findCodeOf(*m) : nullptr;
+    if (!m || !code)
+        return; // no-op: construtor de Object, método nativo, etc.
+
+    pushCalleeFrame(fs, *decl, *m, code, args, widths, true, self);
+}
+
+} // namespace
+
+// invokestatic — invoca um método estático (sem objectref).
+void Interpreter::op_invokestatic() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    std::string class_name  = classNameFromConstantPool(*f.cls, ref.container.Methodref.class_index);
+    const cp_info& nat      = f.cls->constant_pool[ref.container.Methodref.name_and_type_index];
+    std::string method_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+    std::string descriptor  = utf8FromConstantPool(*f.cls, nat.container.NameAndType.descriptor_index);
+
+    invokeStaticMethod(loader_, frame_stack_, class_name, method_name, descriptor);
+}
+
+// invokespecial — chamadas não-virtuais: <init>, métodos private e super.X().
+void Interpreter::op_invokespecial() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    std::string class_name  = classNameFromConstantPool(*f.cls, ref.container.Methodref.class_index);
+    const cp_info& nat      = f.cls->constant_pool[ref.container.Methodref.name_and_type_index];
+    std::string method_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+    std::string descriptor  = utf8FromConstantPool(*f.cls, nat.container.NameAndType.descriptor_index);
+
+    invokeInstanceMethod(loader_, frame_stack_, heap_, class_name, method_name, descriptor, false);
+}
+
+// invokeinterface — despacho dinâmico via interface. O operando traz 2 bytes
+// extras (count e um byte zero reservado) além do índice u2.
+void Interpreter::op_invokeinterface() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+    fetchU1(); // count (nargs+1) — não precisamos, derivamos do descritor
+    fetchU1(); // byte zero reservado
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    std::string class_name  = classNameFromConstantPool(*f.cls, ref.container.InterfaceMethodref.class_index);
+    const cp_info& nat      = f.cls->constant_pool[ref.container.InterfaceMethodref.name_and_type_index];
+    std::string method_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+    std::string descriptor  = utf8FromConstantPool(*f.cls, nat.container.NameAndType.descriptor_index);
+
+    invokeInstanceMethod(loader_, frame_stack_, heap_, class_name, method_name, descriptor, true);
+}
+
+// getfield — desempilha o objectref e empilha o valor do campo de instância.
+void Interpreter::op_getfield() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    const cp_info& nat  = f.cls->constant_pool[ref.container.Fieldref.name_and_type_index];
+    std::string field_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+
+    int32_t objref = f.pop().data.ref;
+    if (heap_.isNull(objref))
+        throw std::runtime_error("NullPointerException");
+    f.push(heap_.getField(objref, field_name));
+}
+
+// putfield — desempilha o valor e o objectref e grava o campo de instância.
+void Interpreter::op_putfield() {
+    Frame& f = currentFrame();
+    u2 cp_index = fetchU2();
+
+    const cp_info& ref  = f.cls->constant_pool[cp_index];
+    const cp_info& nat  = f.cls->constant_pool[ref.container.Fieldref.name_and_type_index];
+    std::string field_name = utf8FromConstantPool(*f.cls, nat.container.NameAndType.name_index);
+
+    Value   value  = f.pop();
+    int32_t objref = f.pop().data.ref;
+    if (heap_.isNull(objref))
+        throw std::runtime_error("NullPointerException");
+    heap_.putField(objref, field_name, value);
+}
 
 // getstatic — lê um campo estático e empilha seu valor.
 // Intercepta java/lang/System.out para simular println sem carregar a stdlib.
@@ -1309,8 +1551,8 @@ void Interpreter::op_invokevirtual() {
         return;
     }
 
-    throw std::runtime_error("invokevirtual nao implementado: " +
-                             class_name + "." + method_name + descriptor);
+    // Demais chamadas: despacho dinâmico pela classe real do receiver.
+    invokeInstanceMethod(loader_, frame_stack_, heap_, class_name, method_name, descriptor, true);
 }
 
 // simulatePrint — imprime o argumento no topo da pilha diretamente em stdout,
@@ -1428,9 +1670,65 @@ void Interpreter::op_iastore() {
     heap_.setElement(ref, index, Value::fromInt(value));
 }
 
-void Interpreter::op_laload()  {} void Interpreter::op_lastore() {}
-void Interpreter::op_faload()  {} void Interpreter::op_fastore() {}
-void Interpreter::op_daload()  {} void Interpreter::op_dastore() {}
+// laload/lastore — elementos long.
+void Interpreter::op_laload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromLong(heap_.getElement(ref, index).data.l));
+}
+
+void Interpreter::op_lastore() {
+    Frame& f = currentFrame();
+    int64_t value = f.pop().data.l;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromLong(value));
+}
+
+// faload/fastore — elementos float.
+void Interpreter::op_faload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromFloat(heap_.getElement(ref, index).data.f));
+}
+
+void Interpreter::op_fastore() {
+    Frame& f = currentFrame();
+    float   value = f.pop().data.f;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromFloat(value));
+}
+
+// daload/dastore — elementos double.
+void Interpreter::op_daload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromDouble(heap_.getElement(ref, index).data.d));
+}
+
+void Interpreter::op_dastore() {
+    Frame& f = currentFrame();
+    double  value = f.pop().data.d;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromDouble(value));
+}
 
 // aaload — empilha o elemento (referência) de um array de objetos.
 void Interpreter::op_aaload() {
@@ -1453,9 +1751,68 @@ void Interpreter::op_aastore() {
     heap_.setElement(ref, index, value);
 }
 
-void Interpreter::op_baload()  {} void Interpreter::op_bastore() {}
-void Interpreter::op_caload()  {} void Interpreter::op_castore() {}
-void Interpreter::op_saload()  {} void Interpreter::op_sastore() {}
+// baload/bastore — arrays de byte e boolean (armazenados como int).
+// baload estende o sinal do byte; bastore trunca o int para 8 bits.
+void Interpreter::op_baload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromInt(heap_.getElement(ref, index).data.i));
+}
+
+void Interpreter::op_bastore() {
+    Frame& f = currentFrame();
+    int32_t value = f.pop().data.i;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromInt(static_cast<int8_t>(value)));
+}
+
+// caload/castore — arrays de char (16 bits sem sinal).
+// caload faz zero-extension; castore trunca para 16 bits.
+void Interpreter::op_caload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromInt(heap_.getElement(ref, index).data.i));
+}
+
+void Interpreter::op_castore() {
+    Frame& f = currentFrame();
+    int32_t value = f.pop().data.i;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromInt(static_cast<uint16_t>(value)));
+}
+
+// saload/sastore — arrays de short (16 bits com sinal).
+// saload estende o sinal; sastore trunca para 16 bits.
+void Interpreter::op_saload() {
+    Frame& f = currentFrame();
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    f.push(Value::fromInt(heap_.getElement(ref, index).data.i));
+}
+
+void Interpreter::op_sastore() {
+    Frame& f = currentFrame();
+    int32_t value = f.pop().data.i;
+    int32_t index = f.pop().data.i;
+    int32_t ref   = f.pop().data.ref;
+    if (heap_.isNull(ref))
+        throw std::runtime_error("NullPointerException");
+    heap_.setElement(ref, index, Value::fromInt(static_cast<int16_t>(value)));
+}
 
 // Helper local: percorre a cadeia de superclasses verificando se `sub` é
 // subtipo de `target`. Usado por checkcast e instanceof. Tudo que herda de
