@@ -836,9 +836,110 @@ void Interpreter::op_iushr() {
     uint32_t value = static_cast<uint32_t>(f.pop().data.i);
     f.push(Value::fromInt(static_cast<int32_t>(value >> shift)));
 }
-void Interpreter::op_pop()     {} void Interpreter::op_pop2()    {}
-void Interpreter::op_dup()     {} void Interpreter::op_dup_x1()  {} void Interpreter::op_dup_x2()  {}
-void Interpreter::op_dup2()    {} void Interpreter::op_swap()    {}
+namespace {
+bool isCategory2(const Value& value) {
+    return value.type == Value::Type::LONG || value.type == Value::Type::DOUBLE;
+}
+
+void requireCategory1(const Value& value, const char* opcode) {
+    if (isCategory2(value))
+        throw std::runtime_error(std::string(opcode) + ": operando category 2 invalido para esta forma");
+}
+} // namespace
+
+// pop: ..., value -> ...; valido apenas para valores category 1.
+void Interpreter::op_pop() {
+    Frame& f = currentFrame();
+    requireCategory1(f.top(), "pop");
+    f.pop();
+}
+
+// pop2: remove um category 2 ou dois category 1 consecutivos.
+void Interpreter::op_pop2() {
+    Frame& f = currentFrame();
+    Value value1 = f.pop();
+    if (isCategory2(value1))
+        return;
+
+    Value value2 = f.pop();
+    requireCategory1(value2, "pop2");
+}
+
+// dup: ..., value -> ..., value, value; valido apenas para category 1.
+void Interpreter::op_dup() {
+    Frame& f = currentFrame();
+    Value value = f.top();
+    requireCategory1(value, "dup");
+    f.push(value);
+}
+
+// dup_x1: ..., value2, value1 -> ..., value1, value2, value1.
+void Interpreter::op_dup_x1() {
+    Frame& f = currentFrame();
+    Value value1 = f.pop();
+    Value value2 = f.pop();
+    requireCategory1(value1, "dup_x1");
+    requireCategory1(value2, "dup_x1");
+
+    f.push(value1);
+    f.push(value2);
+    f.push(value1);
+}
+
+// dup_x2 tem duas formas: insere value1 abaixo de dois category 1 ou abaixo de um category 2.
+void Interpreter::op_dup_x2() {
+    Frame& f = currentFrame();
+    Value value1 = f.pop();
+    Value value2 = f.pop();
+    requireCategory1(value1, "dup_x2");
+
+    if (isCategory2(value2)) {
+        f.push(value1);
+        f.push(value2);
+        f.push(value1);
+        return;
+    }
+
+    Value value3 = f.pop();
+    requireCategory1(value3, "dup_x2");
+
+    f.push(value1);
+    f.push(value3);
+    f.push(value2);
+    f.push(value1);
+}
+
+// dup2: duplica um category 2 ou o par value2/value1 de dois category 1.
+void Interpreter::op_dup2() {
+    Frame& f = currentFrame();
+    Value value1 = f.pop();
+    if (isCategory2(value1)) {
+        f.push(value1);
+        f.push(value1);
+        return;
+    }
+
+    Value value2 = f.pop();
+    requireCategory1(value2, "dup2");
+
+    f.push(value2);
+    f.push(value1);
+    f.push(value2);
+    f.push(value1);
+}
+
+// swap: ..., value2, value1 -> ..., value1, value2; ambos devem ser category 1.
+void Interpreter::op_swap() {
+    Frame& f = currentFrame();
+    Value value1 = f.pop();
+    Value value2 = f.pop();
+    requireCategory1(value1, "swap");
+    requireCategory1(value2, "swap");
+
+    f.push(value1);
+    f.push(value2);
+}
+
 // Conversões f2i/f2l/d2i/d2l seguem a JLS: NaN vira 0 e valores fora da faixa
 // do tipo destino saturam em MIN/MAX em vez de dar overflow indefinido (o que
 // static_cast faria em C++).
