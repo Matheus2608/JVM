@@ -794,8 +794,48 @@ void Interpreter::op_astore_2() { Frame& f = currentFrame(); f.locals[2] = f.pop
 void Interpreter::op_astore_3() { Frame& f = currentFrame(); f.locals[3] = f.pop(); }
 void Interpreter::op_astore()   { Frame& f = currentFrame(); u1 idx = fetchU1(); f.locals[idx] = f.pop(); }
 
-void Interpreter::op_iand()    {} void Interpreter::op_ior()     {} void Interpreter::op_ixor()    {}
-void Interpreter::op_ishl()    {} void Interpreter::op_ishr()    {} void Interpreter::op_iushr()   {}
+void Interpreter::op_iand() {
+    Frame& f = currentFrame();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    f.push(Value::fromInt(a & b));
+}
+
+void Interpreter::op_ior() {
+    Frame& f = currentFrame();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    f.push(Value::fromInt(a | b));
+}
+
+void Interpreter::op_ixor() {
+    Frame& f = currentFrame();
+    int32_t b = f.pop().data.i;
+    int32_t a = f.pop().data.i;
+    f.push(Value::fromInt(a ^ b));
+}
+
+void Interpreter::op_ishl() {
+    Frame& f = currentFrame();
+    int32_t shift = f.pop().data.i & 0x1f; // JVM usa apenas os 5 bits baixos.
+    int32_t value = f.pop().data.i;
+    uint32_t result = static_cast<uint32_t>(value) << shift;
+    f.push(Value::fromInt(static_cast<int32_t>(result)));
+}
+
+void Interpreter::op_ishr() {
+    Frame& f = currentFrame();
+    int32_t shift = f.pop().data.i & 0x1f; // Deslocamento aritmetico com sinal.
+    int32_t value = f.pop().data.i;
+    f.push(Value::fromInt(value >> shift));
+}
+
+void Interpreter::op_iushr() {
+    Frame& f = currentFrame();
+    int32_t shift = f.pop().data.i & 0x1f; // Deslocamento logico sem sinal.
+    uint32_t value = static_cast<uint32_t>(f.pop().data.i);
+    f.push(Value::fromInt(static_cast<int32_t>(value >> shift)));
+}
 void Interpreter::op_pop()     {} void Interpreter::op_pop2()    {}
 void Interpreter::op_dup()     {} void Interpreter::op_dup_x1()  {} void Interpreter::op_dup_x2()  {}
 void Interpreter::op_dup2()    {} void Interpreter::op_swap()    {}
