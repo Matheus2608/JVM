@@ -31,34 +31,76 @@ jvm/
 Build e execução
 -----------------
 
-Requisitos: `g++` (C++11) e `make`.
+O mesmo `Makefile` funciona em **Linux/macOS** e em **Windows nativo** (Prompt de
+Comando). Ele detecta o sistema operacional e usa os comandos certos de cada um
+(`mkdir`/`rm` no Unix, `mkdir`/`rmdir` do `cmd.exe` no Windows) e gera `.exe`
+automaticamente no Windows.
 
-Compilar tudo (gera os dois binários):
+### Linux / macOS
+
+Requisitos: `g++` (C++11) e `make`.
 
 ```bash
 make
 ```
 
+### Windows (Prompt de Comando, sem WSL)
+
+Requisitos:
+
+- **MinGW-w64** (fornece o `g++`). A forma mais simples é instalar o
+  [MSYS2](https://www.msys2.org/) e depois, no terminal MSYS2:
+  `pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-make`.
+- Adicionar a pasta `bin` do MinGW ao **PATH** (ex.: `C:\msys64\ucrt64\bin`).
+
+Abra o **Prompt de Comando (cmd.exe)** na raiz do projeto e use `mingw32-make`
+(nome do `make` que vem com o MinGW):
+
+```bat
+mingw32-make
+```
+
+> Importante: rode no **cmd.exe**, não no Git Bash/MSYS. Assim as receitas usam
+> os comandos nativos do Windows. Se o seu `make` chamar `mingw32-make`, pode
+> trocar `mingw32-make` por `make` nos exemplos abaixo — o comportamento é o mesmo.
+
+Os binários gerados são `bin\jvm.exe` e `bin\leitor-exibidor.exe`.
+
+### Comandos (iguais nos dois sistemas)
+
 **Executar um `.class` no interpretador:**
 
 ```bash
 make exec exemplos/fatorial.class
-# ou diretamente
+```
+
+Diretamente pelo binário — Linux/macOS:
+
+```bash
 ./bin/jvm exemplos/fatorial.class
+```
+
+Diretamente pelo binário — Windows (cmd.exe):
+
+```bat
+bin\jvm.exe exemplos\fatorial.class
 ```
 
 **Exibir o conteúdo de um `.class` (Leitor-Exibidor):**
 
 ```bash
 make run ARGS="exemplos/Hello.class"
-# ou diretamente
-./bin/leitor-exibidor exemplos/Hello.class
 ```
+
+Diretamente — Linux/macOS: `./bin/leitor-exibidor exemplos/Hello.class`
+· Windows: `bin\leitor-exibidor.exe exemplos\Hello.class`
 
 Compilação manual (sem make)
 -----------------------------
 
 Como cada componente vive em sua subpasta de `jvm/`, é preciso passar os `-I` correspondentes.
+Os comandos abaixo são para Linux/macOS; no Windows use `\` em vez de `/` na criação da
+pasta (`if not exist bin mkdir bin`) e o `g++` do MinGW já produz `bin\jvm.exe`.
 
 Leitor-Exibidor:
 
