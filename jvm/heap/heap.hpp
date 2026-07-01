@@ -11,20 +11,6 @@
 #include "runtime.hpp"          // Value
 #include "estrutura_dados.hpp"  // class_info
 
-// =============================================================================
-// Heap — área de memória compartilhada do diagrama do professor
-//
-// Guarda tudo que é alocado em tempo de execução: instâncias de objetos
-// (opcode new) e arrays (newarray / anewarray). Cada alocação devolve uma
-// referência inteira (int32) que é o índice da célula nesta tabela.
-//
-// Convenção de referências (igual a Value::data.ref):
-//   0          → null
-//   1, 2, 3... → índices válidos de objetos/arrays
-//
-// Por isso o slot 0 é reservado e nunca é usado para um objeto real.
-// =============================================================================
-
 // -----------------------------------------------------------------------------
 // HeapObject — uma instância de classe (resultado de `new`)
 //
@@ -92,7 +78,12 @@ public:
     // Alocação
     // -------------------------------------------------------------------------
 
-    // Cria uma instância da classe dada e devolve sua referência (>= 1).
+    /**
+     * @brief Aloca um novo objeto no heap.
+     * @param cls Ponteiro para a estrutura da classe instanciada.
+     * @param class_name Nome da classe.
+     * @return A referência (índice no heap) para o objeto alocado.
+     */
     int32_t allocateObject(const class_info* cls, const std::string& class_name) {
         HeapCell cell;
         cell.kind          = HeapCell::Kind::OBJECT;
@@ -103,7 +94,13 @@ public:
         return static_cast<int32_t>(cells_.size() - 1);
     }
 
-    // Cria um array de tipo primitivo (newarray) e devolve sua referência.
+    /**
+     * @brief Aloca um novo array de tipo primitivo (resultado de `newarray`).
+     * @param element_type O tipo dos elementos, conforme os códigos T_* da JVM.
+     * @param length O número de elementos do array.
+     * @return A referência para o array alocado.
+     * @throws std::runtime_error se o tamanho for negativo.
+     */
     int32_t allocateArray(u1 element_type, int32_t length) {
         if (length < 0)
             throw std::runtime_error("NegativeArraySizeException");
@@ -117,7 +114,13 @@ public:
         return static_cast<int32_t>(cells_.size() - 1);
     }
 
-    // Cria um array de referências (anewarray) e devolve sua referência.
+    /**
+     * @brief Aloca um novo array de referências (resultado de `anewarray`).
+     * @param element_class O nome da classe dos elementos.
+     * @param length O número de elementos do array.
+     * @return A referência para o array alocado.
+     * @throws std::runtime_error se o tamanho for negativo.
+     */
     int32_t allocateRefArray(const std::string& element_class, int32_t length) {
         if (length < 0)
             throw std::runtime_error("NegativeArraySizeException");

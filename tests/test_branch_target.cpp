@@ -9,9 +9,16 @@
 #include <vector>
 #include <sstream>
 #include <cstdio>
-#include <unistd.h>
 #include "disasm.hpp"
 #include "estrutura_dados.hpp"
+
+// Includes para portabilidade de pipes (Windows/Linux)
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#else
+#include <unistd.h>
+#endif
 
 static class_info empty_cls;
 
@@ -20,20 +27,42 @@ static std::string capture_disasm(const std::vector<u1> &code, u4 len)
 {
     // Redireciona stdout para um pipe temporário
     fflush(stdout);
-    int saved = dup(STDOUT_FILENO);
+
+#ifdef _WIN32
+    int original_stdout_fd = _dup(STDOUT_FILENO);
     int pipefd[2];
-    pipe(pipefd);
+    // O_BINARY é importante para evitar conversão de \n para \r\n
+    if (_pipe(pipefd, 1024, _O_BINARY) != 0) {
+        perror("Falha ao criar pipe");
+        return "";
+    }
+    _dup2(pipefd[1], STDOUT_FILENO);
+    _close(pipefd[1]);
+#else
+    int saved_stdout = dup(STDOUT_FILENO);
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        perror("Falha ao criar pipe");
+        return "";
+    }
     dup2(pipefd[1], STDOUT_FILENO);
     close(pipefd[1]);
+#endif
 
     disassembleCode(code, len, empty_cls);
     fflush(stdout);
 
-    dup2(saved, STDOUT_FILENO);
-    close(saved);
+#ifdef _WIN32
+    _dup2(original_stdout_fd, STDOUT_FILENO);
+    _close(original_stdout_fd);
+#else
+    dup2(saved_stdout, STDOUT_FILENO);
+    close(saved_stdout);
+#endif
 
     char buf[1024] = {};
-    ssize_t n = read(pipefd[0], buf, sizeof(buf) - 1);
+    // MinGW define read/close em io.h, então isso funciona em ambos os sistemas
+    int n = read(pipefd[0], buf, sizeof(buf) - 1);
     close(pipefd[0]);
     if (n > 0) buf[n] = '\0';
     return std::string(buf);
@@ -41,9 +70,8 @@ static std::string capture_disasm(const std::vector<u1> &code, u4 len)
 
 static void test_goto_target_positivo()
 {
-    // goto com offset +5 a partir de pc=0: target deve ser 3 (pc=0, offset nos bytes 1-2)
-    // Instrução: 0xA7 (goto) + 0x00 0x05 (+5)
-    // Target = 0 + 5 = 5
+    // Instrução: goto com offset +5 (0xA7 00 05).
+    // A partir do pc=0, o alvo do desvio deve ser 0 + 5 = 5.
     std::vector<u1> code = {0xA7, 0x00, 0x05};
     std::string output = capture_disasm(code, 3);
     assert(output.find("goto 5") != std::string::npos
@@ -52,7 +80,6 @@ static void test_goto_target_positivo()
 
 static void test_goto_target_negativo()
 {
-    // goto com offset -3 (0xFFFD em big-endian) a partir de pc=6
     // Cria 6 bytes de nop antes do goto para que pc=6 quando o goto for encontrado
     // Target = 6 + (-3) = 3
     std::vector<u1> code = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 6x nop

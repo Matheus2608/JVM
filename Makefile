@@ -1,8 +1,8 @@
 # Makefile para o projeto JVM
 # Compilador e flags
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Wextra -O2
-LDFLAGS =
+CXXFLAGS = -std=c++11 -Wall -Wextra -O2 -D_GLIBCXX_USE_CXX11_ABI=0
+LDFLAGS = -static-libstdc++
 DEPFLAGS = -MMD -MP
 
 # Build de debug:  make DEBUG=1 ...
@@ -105,8 +105,8 @@ test: all $(TEST_BINS)
 
 # Limpa arquivos compilados
 clean:
-	@rm -rf $(OBJ_DIR) $(BIN_DIR)
-	@echo "✓ Limpeza concluída"
+	@rm -rf $(OBJ_DIR) $(BIN_DIR) || true
+	@echo "✓ Limpeza concluída."
 
 # Mostra ajuda
 help:
