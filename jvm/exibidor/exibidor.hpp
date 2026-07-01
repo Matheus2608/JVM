@@ -10,20 +10,17 @@
 #include "parser.hpp"
 
 /**
- * @brief Responsável por formatar e imprimir as informações da classe.
+ * @brief Formata e exibe o conteúdo de um arquivo .class de forma legível.
  * 
- * Realiza a ponte entre os metadados brutos armazenados (ex: números hexadecimais) 
- * e a representação legível para humanos, fazendo ligações dinâmicas com a Constant Pool
- * para exibir os nomes reais de classes, métodos e variáveis referenciadas no código.
+ * Utiliza as informações da Constant Pool para resolver nomes de classes,
+ * métodos e campos, apresentando uma visão estruturada do bytecode.
  */
 class Exibidor {
 public:
     explicit Exibidor(const std::string& filename);
     ~Exibidor();
 
-    /**
-     * @brief Função orquestradora que chama todas as rotinas de exibição em tela no terminal.
-     */
+    /** @brief Exibe todas as seções do arquivo .class no terminal. */
     void display();
 
 private:
@@ -37,7 +34,8 @@ private:
     void attributesDisplay();
     
     /**
-     * @brief Traduz as strings difíceis da JVM para uma assinatura de método Java tradicional.
+     * @brief Converte um descritor de método da JVM (ex: "(II)V") em uma
+     * assinatura Java legível (ex: "void nome(int, int)").
      */
     std::pair<std::string, std::string> getMethodSignature(const method_info &method);
 };

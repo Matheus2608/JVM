@@ -33,6 +33,9 @@ Build e execução
 
 Requisitos: `g++` (C++11) e `make`.
 
+> **Windows**: O ambiente recomendado é o **MSYS2 com MinGW-w64**. Após a instalação,
+> use o terminal "MSYS2 MinGW x64" ou adicione `C:\msys64\mingw64\bin` ao `PATH` do seu terminal.
+
 Compilar tudo (gera os dois binários):
 
 ```bash

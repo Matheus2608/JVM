@@ -240,10 +240,12 @@ int16_t Interpreter::fetchS2() { return static_cast<int16_t>(fetchU2()); }
 int32_t Interpreter::fetchS4() { return static_cast<int32_t>(fetchU4()); }
 
 void Interpreter::branch(int32_t offset) {
-    // offset é relativo ao início da instrução (pc já avançou 1 para o opcode
-    // e mais N para os operandos); ajustamos subtraindo o que foi consumido.
+    // Desvia a execução para um novo PC. O offset é relativo ao início da
+    // instrução de branch, então o avanço do PC para ler o opcode e os
+    // operandos deve ser desfeito.
     Frame& f = currentFrame();
-    f.pc += offset - 3; // 3 = 1 (opcode) + 2 (operandos de branch padrão)
+    // A maioria das instruções de branch tem 3 bytes (1 opcode + 2 de offset).
+    f.pc += offset - 3;
 }
 
 const code_attribute* Interpreter::findCode(const method_info& method) const {
@@ -401,10 +403,8 @@ void Interpreter::op_ldc() {
         std::cout << "[DEBUG] op_ldc leu e empilhou o Float: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_String) {
-        // Empilha o índice desta String no constant pool como "referência".
-        // O texto é resolvido só na hora de imprimir (mesmo constant pool).
-        f.push(Value::fromRef(static_cast<int32_t>(idx)));
-        std::cout << "[DEBUG] op_ldc empilhou String (cp #" << static_cast<int>(idx) << ")" << std::endl;
+        f.push(Value::fromRef(0));
+        std::cout << "[DEBUG] op_ldc encontrou uma String (Ref=0 temporario)" << std::endl;
     }
 }
 
@@ -426,9 +426,8 @@ void Interpreter::op_ldc_w() {
         std::cout << "[DEBUG] op_ldc_w leu e empilhou o Float: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_String) {
-        // Mesmo esquema do op_ldc: empilha o índice do constant pool.
-        f.push(Value::fromRef(static_cast<int32_t>(idx)));
-        std::cout << "[DEBUG] op_ldc_w empilhou String (cp #" << static_cast<int>(idx) << ")" << std::endl;
+        f.push(Value::fromRef(0));
+        std::cout << "[DEBUG] op_ldc_w encontrou uma String (Ref=0 temporario)" << std::endl;
     }
 }
 
@@ -741,14 +740,9 @@ void Interpreter::op_dcmpg() {
 // Os demais opcodes seguem o mesmo padrão acima.
 // Implemente um a um conforme avançar nas etapas.
 
-// Stubs para opcodes ainda não implementados
-// (substituir pelo corpo real à medida que o projeto avança)
-
-// lload/fload/dload/aload e lstore/fstore/dstore/astore — mesmo padrão de
-// iload/istore acima (Value carrega seu próprio tipo, então push/pop direto
-// do slot funciona para qualquer tipo). Tarefa da Pessoa 3 (load/store de
-// locais); implementado aqui porque sem isso era impossível testar fim-a-fim
-// as conversões e a aritmética float/double/long que dependem de locais.
+// Opcodes de load/store para long, float, double e reference. A lógica é
+// idêntica aos opcodes de integer, pois a struct `Value` é polimórfica e
+// carrega a informação de seu próprio tipo.
 void Interpreter::op_lload_0() { Frame& f = currentFrame(); f.push(f.locals[0]); }
 void Interpreter::op_lload_1() { Frame& f = currentFrame(); f.push(f.locals[1]); }
 void Interpreter::op_lload_2() { Frame& f = currentFrame(); f.push(f.locals[2]); }
@@ -1064,8 +1058,8 @@ void Interpreter::op_i2s() {
 }
 
 // ifeq/ifne/.../ifle — comparam o int do topo da pilha com zero e desviam se
-// a condição for satisfeita. O offset é relativo ao endereço do opcode, então
-// usamos branch() para compensar os 3 bytes (opcode + 2 de operando) já lidos.
+// a condição for satisfeita. O offset é relativo ao endereço do opcode.
+// A função branch() compensa os 3 bytes (opcode + 2 de operando) já lidos.
 void Interpreter::op_ifeq() {
     Frame& f = currentFrame();
     int16_t offset = fetchS2();
@@ -1595,10 +1589,9 @@ void Interpreter::simulatePrint(const std::string& method_name, const std::strin
         f.pop();
         std::cout << static_cast<char>(val);
     } else if (descriptor == "(Ljava/lang/String;)V") {
-        int32_t cp_index = f.pop().data.ref; // índice do CONSTANT_String no constant pool
-        f.pop();                             // receiver
-        const cp_info& s = f.cls->constant_pool[cp_index];
-        std::cout << utf8FromConstantPool(*f.cls, s.container.String.string_index);
+        f.pop(); // string ref (suporte completo a String ainda pendente)
+        f.pop(); // receiver
+        std::cout << "(String)";
     } else {
         throw std::runtime_error("simulatePrint: descritor nao suportado: " + descriptor);
     }

@@ -29,10 +29,7 @@ class_info Parser::parse()
     return classInfo;
 }
 
-/**
- * @brief Valida a assinatura (Magic Number) do arquivo.
- * Todo arquivo compilado para a JVM deve, obrigatoriamente, começar com os bytes 0xCAFEBABE.
- */
+/** @brief Valida o magic number 0xCAFEBABE no início do arquivo .class. */
 void Parser::parseMagic()
 {
     u4 magic = leitor.readu4();
@@ -58,10 +55,11 @@ void Parser::parseConstantPoolCount()
     classInfo.constant_pool_count = leitor.readu2();
 }
 
-/**
- * @brief Extrai a Pool de Constantes resolvendo a anomalia do tipo Long/Double.
- * De acordo com a especificação da JVM, variáveis de 64 bits (Long e Double) 
- * ocupam dois slots na tabela. O iterador (++i) extra é acionado quando essas tags são encontradas.
+/*
+ * @brief Lê a tabela da constant pool.
+ * 
+ * Conforme a especificação da JVM, constantes do tipo Long e Double ocupam
+ * dois slots, o que exige um incremento adicional no contador do loop.
  */
 void Parser::parseConstantPool()
 {
@@ -189,10 +187,11 @@ void Parser::parseMethodsCount()
     classInfo.methods_count = leitor.readu2();
 }
 
-/**
- * @brief Lê e estrutura a tabela de métodos, com foco no atributo 'Code'.
- * É o principal da extração lógica: identifica o corpo executável dos métodos e delega
- * a criação das estruturas aninhadas (Exception Table, LineNumberTable, Variables).
+/*
+ * @brief Lê a tabela de métodos, fazendo o parse detalhado do atributo 'Code'.
+ * 
+ * O atributo 'Code' contém o bytecode executável e suas informações
+ * associadas, como a tabela de exceções e outros atributos aninhados.
  */
 void Parser::parseMethods()
 {
