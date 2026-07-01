@@ -10,24 +10,34 @@
 #include "runtime.hpp"
 #include "class_loader.hpp"
 
-class Heap; // implementado depois
+class Heap; // Declaração avançada
 
-// =============================================================================
-// Interpreter — Execution Engine
-//
-// Recebe os três componentes do Runtime Data Area e executa bytecodes.
-// O dispatch_table_ mapeia cada opcode para sua função correspondente,
-// evitando um switch gigante e permitindo adicionar opcodes incrementalmente.
-// =============================================================================
-
+/**
+ * @brief O Motor de Execução (Execution Engine) da JVM.
+ * 
+ * Esta classe é responsável pelo loop principal de execução da JVM. Ela busca
+ * bytecodes do atributo `Code` de um método, os decodifica e os despacha
+ * para as funções de tratamento correspondentes. Opera sobre as áreas de
+ * dados de tempo de execução: o `ClassLoader` (Method Area), a `FrameStack` e o `Heap`.
+ */
 class Interpreter {
 public:
     Interpreter(ClassLoader& loader, FrameStack& frame_stack, Heap& heap);
 
-    // Cria o Frame inicial para o método e inicia o loop de execução.
+    /**
+     * @brief Prepara o frame inicial para um método e inicia o loop de execução.
+     * @param cls A classe que contém o método.
+     * @param method O método a ser executado (ex: `main`).
+     */
     void execute(const class_info& cls, const method_info& method);
 
-    // Loop principal: busca opcode → despacha via dispatch_table_ → repete.
+    /**
+     * @brief O loop principal de execução.
+     * 
+     * Busca, decodifica e executa opcodes do frame atual continuamente
+     * até que a pilha de frames esteja vazia ou `halt()` seja chamado. Também
+     * gerencia o despacho de exceções.
+     */
     void run();
 
     bool   halted() const { return halted_; }
@@ -35,7 +45,7 @@ public:
 
 private:
     // -------------------------------------------------------------------------
-    // Referências ao Runtime Data Area
+    // Referências às Áreas de Dados de Tempo de Execução
     // -------------------------------------------------------------------------
     ClassLoader& loader_;
     FrameStack&  frame_stack_;
@@ -44,8 +54,8 @@ private:
 
 
     // -------------------------------------------------------------------------
-    // Dispatch table: opcode → handler
-    // Preenchida no construtor uma vez; consultada a cada instrução.
+    // Tabela de despacho: opcode -> função de tratamento.
+    // Construída uma vez no construtor para evitar um `switch` gigante.
     // -------------------------------------------------------------------------
     std::unordered_map<uint8_t, std::function<void()>> dispatch_table_;
 
@@ -53,7 +63,7 @@ private:
 
     // -------------------------------------------------------------------------
     // Helpers de leitura de bytecode (avançam o PC do frame atual)
-    // -------------------------------------------------------------------------
+    // ------------------------------------------------------------------------- 
     Frame& currentFrame();
     u1     fetchU1();
     u2     fetchU2();
@@ -61,7 +71,7 @@ private:
     int8_t  fetchS1();
     int16_t fetchS2();
     int32_t fetchS4();
-    void     branch(int32_t offset); // aplica offset relativo ao PC
+    void    branch(int32_t offset); // Aplica um deslocamento relativo ao PC.
 
     // Localiza o atributo Code de um método
     const code_attribute* findCode(const method_info& method) const;
@@ -70,7 +80,7 @@ private:
     // Constantes
     // -------------------------------------------------------------------------
     void op_nop();
-    void op_aconst_null();
+    void op_aconst_null(); 
     void op_iconst(int32_t value); // helper compartilhado por iconst_m1..5
     void op_iconst_m1();
     void op_iconst_0();
@@ -183,7 +193,7 @@ private:
     void op_getfield();  void op_putfield();
 
     // -------------------------------------------------------------------------
-    // Objetos e arrays (implementados depois, junto com Heap)
+    // Objetos e arrays
     // -------------------------------------------------------------------------
     void op_new();
     void op_newarray();   void op_anewarray(); void op_arraylength();

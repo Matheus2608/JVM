@@ -8,23 +8,18 @@
 #include <iostream>
 #include <cmath>
 
-// =============================================================================
-// Tratamento de exceções (helpers locais)
-//
-// Uma exceção Java "em trânsito" é representada por JavaException, que carrega a
-// referência do objeto lançado no heap e o nome da sua classe (para casar com os
-// handlers da exception_table). O run() captura isso e chama dispatchException,
-// que procura um handler subindo pelos frames (unwinding).
-// =============================================================================
 namespace {
 
+/**
+ * @brief Representa uma exceção Java em trânsito no interpretador C++.
+ * @param ref A referência do objeto da exceção alocado no heap.
+ * @param class_name O nome da classe da exceção, usado para encontrar o handler `catch` correto.
+ */
 struct JavaException {
-    int32_t     ref;        // objeto da exceção no heap
-    std::string class_name; // classe da exceção (p/ casar com os catch)
+    int32_t     ref;
+    std::string class_name;
 };
 
-// Hierarquia embutida das exceções da biblioteca padrão — que não conseguimos
-// carregar do classpath. Permite casar catch(RuntimeException), catch(Exception), etc.
 const std::unordered_map<std::string, std::string>& builtinThrowableParents() {
     static const std::unordered_map<std::string, std::string> m = {
         {"java/lang/ArithmeticException",             "java/lang/RuntimeException"},
@@ -45,13 +40,10 @@ const std::unordered_map<std::string, std::string>& builtinThrowableParents() {
     return m;
 }
 
-// Verdadeiro se `sub` é a mesma classe ou subclasse de `target`. Sobe a cadeia
-// de superclasses misturando classes carregáveis (do usuário) com a hierarquia
-// embutida da stdlib — assim uma exceção do usuário que estende RuntimeException
-// ainda casa com catch(Exception).
 bool throwableIsSubtype(ClassLoader& loader, std::string cur, const std::string& target) {
     if (target == "java/lang/Object" || target == "java/lang/Throwable")
         return true;
+    // Limita a busca para evitar loops infinitos em hierarquias malformadas.
     for (int guard = 0; guard < 64; ++guard) {
         if (cur == target)
             return true;
@@ -59,12 +51,12 @@ bool throwableIsSubtype(ClassLoader& loader, std::string cur, const std::string&
         try {
             const class_info& cls = loader.load(cur);
             if (cls.super_class == 0)
-                return false; // chegou em java/lang/Object
+                return false;
             next = classNameFromConstantPool(cls, cls.super_class);
         } catch (...) {
             auto it = builtinThrowableParents().find(cur);
             if (it == builtinThrowableParents().end())
-                return false; // classe desconhecida e não carregável
+                return false;
             next = it->second;
         }
         cur = next;
@@ -72,39 +64,33 @@ bool throwableIsSubtype(ClassLoader& loader, std::string cur, const std::string&
     return false;
 }
 
-// Procura um handler para a exceção percorrendo os frames de cima para baixo.
-// Retorna true se achou (o frame do topo fica pronto para retomar no handler_pc);
-// false se a exceção é não-capturada (a pilha de frames terá sido esvaziada).
 bool dispatchException(FrameStack& fs, ClassLoader& loader,
                        int32_t ref, const std::string& ex_class) {
     while (!fs.empty()) {
         Frame& f = fs.top();
-        size_t pc = f.last_pc; // offset da instrução que lançou (ou do invoke)
+        size_t pc = f.last_pc;
 
         for (const exception_table_info& ent : f.code->exception_table) {
             if (pc < ent.start_pc || pc >= ent.end_pc)
-                continue; // instrução fora da região protegida deste handler
+                continue;
 
-            bool matches = (ent.catch_type == 0); // catch_type 0 = qualquer (finally)
+            bool matches = (ent.catch_type == 0);
             if (!matches) {
                 std::string catch_class = classNameFromConstantPool(*f.cls, ent.catch_type);
                 matches = throwableIsSubtype(loader, ex_class, catch_class);
             }
             if (matches) {
-                // Ao entrar no handler: limpa a pilha de operandos e deixa só a exceção.
                 while (!f.operand_stack.empty()) f.operand_stack.pop();
                 f.push(Value::fromRef(ref));
                 f.pc = ent.handler_pc;
                 return true;
             }
         }
-        fs.pop(); // sem handler neste frame: desempilha e tenta o chamador
+        fs.pop();
     }
     return false;
 }
 
-// Traduz as mensagens dos throws internos (std::runtime_error) para a classe de
-// exceção da JVM equivalente, tornando esses erros capturáveis por catch.
 std::string builtinClassForMessage(const std::string& msg) {
     static const std::pair<const char*, const char*> table[] = {
         {"ArithmeticException",            "java/lang/ArithmeticException"},
@@ -121,10 +107,6 @@ std::string builtinClassForMessage(const std::string& msg) {
 
 } // namespace
 
-// =============================================================================
-// Construtor — monta a dispatch table
-// =============================================================================
-
 Interpreter::Interpreter(ClassLoader& loader, FrameStack& frame_stack, Heap& heap)
     : loader_(loader), frame_stack_(frame_stack), heap_(heap)
 {
@@ -132,10 +114,6 @@ Interpreter::Interpreter(ClassLoader& loader, FrameStack& frame_stack, Heap& hea
 }
 
 void Interpreter::buildDispatchTable() {
-    // Cada entrada mapeia: opcode → lambda que chama o método correspondente.
-    // Os opcodes não listados aqui lançam erro em run().
-
-    // Constantes
     dispatch_table_[0x00] = [this]{ op_nop();         };
     dispatch_table_[0x01] = [this]{ op_aconst_null(); };
     dispatch_table_[0x02] = [this]{ op_iconst_m1();   };
@@ -158,7 +136,6 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x13] = [this]{ op_ldc_w();       };
     dispatch_table_[0x14] = [this]{ op_ldc2_w();      };
 
-    // Load
     dispatch_table_[0x15] = [this]{ op_iload();   }; dispatch_table_[0x1a] = [this]{ op_iload_0(); };
     dispatch_table_[0x1b] = [this]{ op_iload_1(); }; dispatch_table_[0x1c] = [this]{ op_iload_2(); };
     dispatch_table_[0x1d] = [this]{ op_iload_3(); };
@@ -175,7 +152,6 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x2b] = [this]{ op_aload_1(); }; dispatch_table_[0x2c] = [this]{ op_aload_2(); };
     dispatch_table_[0x2d] = [this]{ op_aload_3(); };
 
-    // Store
     dispatch_table_[0x36] = [this]{ op_istore();   }; dispatch_table_[0x3b] = [this]{ op_istore_0(); };
     dispatch_table_[0x3c] = [this]{ op_istore_1(); }; dispatch_table_[0x3d] = [this]{ op_istore_2(); };
     dispatch_table_[0x3e] = [this]{ op_istore_3(); };
@@ -192,7 +168,6 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x4c] = [this]{ op_astore_1(); }; dispatch_table_[0x4d] = [this]{ op_astore_2(); };
     dispatch_table_[0x4e] = [this]{ op_astore_3(); };
 
-    // Aritmética inteira
     dispatch_table_[0x60] = [this]{ op_iadd();  }; dispatch_table_[0x64] = [this]{ op_isub();  };
     dispatch_table_[0x68] = [this]{ op_imul();  }; dispatch_table_[0x6c] = [this]{ op_idiv();  };
     dispatch_table_[0x70] = [this]{ op_irem();  }; dispatch_table_[0x74] = [this]{ op_ineg();  };
@@ -201,7 +176,6 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x7a] = [this]{ op_ishr();  }; dispatch_table_[0x7c] = [this]{ op_iushr(); };
     dispatch_table_[0x84] = [this]{ op_iinc();  };
 
-    // Aritmética long
     dispatch_table_[0x61] = [this]{ op_ladd();  }; dispatch_table_[0x65] = [this]{ op_lsub();  };
     dispatch_table_[0x69] = [this]{ op_lmul();  }; dispatch_table_[0x6d] = [this]{ op_ldiv();  };
     dispatch_table_[0x71] = [this]{ op_lrem();  }; dispatch_table_[0x75] = [this]{ op_lneg();  };
@@ -210,25 +184,21 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x7b] = [this]{ op_lshr();  }; dispatch_table_[0x7d] = [this]{ op_lushr(); };
     dispatch_table_[0x94] = [this]{ op_lcmp();  };
 
-    // Aritmética float
     dispatch_table_[0x62] = [this]{ op_fadd();  }; dispatch_table_[0x66] = [this]{ op_fsub();  };
     dispatch_table_[0x6a] = [this]{ op_fmul();  }; dispatch_table_[0x6e] = [this]{ op_fdiv();  };
     dispatch_table_[0x72] = [this]{ op_frem();  }; dispatch_table_[0x76] = [this]{ op_fneg();  };
     dispatch_table_[0x95] = [this]{ op_fcmpl(); }; dispatch_table_[0x96] = [this]{ op_fcmpg(); };
 
-    // Aritmética double
     dispatch_table_[0x63] = [this]{ op_dadd();  }; dispatch_table_[0x67] = [this]{ op_dsub();  };
     dispatch_table_[0x6b] = [this]{ op_dmul();  }; dispatch_table_[0x6f] = [this]{ op_ddiv();  };
     dispatch_table_[0x73] = [this]{ op_drem();  }; dispatch_table_[0x77] = [this]{ op_dneg();  };
     dispatch_table_[0x97] = [this]{ op_dcmpl(); }; dispatch_table_[0x98] = [this]{ op_dcmpg(); };
 
-    // Manipulação de pilha
     dispatch_table_[0x57] = [this]{ op_pop();    }; dispatch_table_[0x58] = [this]{ op_pop2();   };
     dispatch_table_[0x59] = [this]{ op_dup();    }; dispatch_table_[0x5a] = [this]{ op_dup_x1(); };
     dispatch_table_[0x5b] = [this]{ op_dup_x2(); }; dispatch_table_[0x5c] = [this]{ op_dup2();   };
     dispatch_table_[0x5f] = [this]{ op_swap();   };
 
-    // Conversões
     dispatch_table_[0x85] = [this]{ op_i2l(); }; dispatch_table_[0x86] = [this]{ op_i2f(); };
     dispatch_table_[0x87] = [this]{ op_i2d(); }; dispatch_table_[0x88] = [this]{ op_l2i(); };
     dispatch_table_[0x89] = [this]{ op_l2f(); }; dispatch_table_[0x8a] = [this]{ op_l2d(); };
@@ -238,7 +208,6 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x91] = [this]{ op_i2b(); }; dispatch_table_[0x92] = [this]{ op_i2c(); };
     dispatch_table_[0x93] = [this]{ op_i2s(); };
 
-    // Controle de fluxo
     dispatch_table_[0x99] = [this]{ op_ifeq();      }; dispatch_table_[0x9a] = [this]{ op_ifne();      };
     dispatch_table_[0x9b] = [this]{ op_iflt();      }; dispatch_table_[0x9c] = [this]{ op_ifge();      };
     dispatch_table_[0x9d] = [this]{ op_ifgt();      }; dispatch_table_[0x9e] = [this]{ op_ifle();      };
@@ -251,23 +220,19 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0xaa] = [this]{ op_tableswitch();  };
     dispatch_table_[0xab] = [this]{ op_lookupswitch(); };
 
-    // Invocação
     dispatch_table_[0xb8] = [this]{ op_invokestatic();    };
     dispatch_table_[0xb7] = [this]{ op_invokespecial();   };
     dispatch_table_[0xb6] = [this]{ op_invokevirtual();   };
     dispatch_table_[0xb9] = [this]{ op_invokeinterface(); };
 
-    // Retorno
     dispatch_table_[0xb1] = [this]{ op_return();  };
     dispatch_table_[0xac] = [this]{ op_ireturn(); }; dispatch_table_[0xad] = [this]{ op_lreturn(); };
     dispatch_table_[0xae] = [this]{ op_freturn(); }; dispatch_table_[0xaf] = [this]{ op_dreturn(); };
     dispatch_table_[0xb0] = [this]{ op_areturn(); };
 
-    // Campos
     dispatch_table_[0xb2] = [this]{ op_getstatic(); }; dispatch_table_[0xb3] = [this]{ op_putstatic(); };
     dispatch_table_[0xb4] = [this]{ op_getfield();  }; dispatch_table_[0xb5] = [this]{ op_putfield();  };
 
-    // Objetos e arrays
     dispatch_table_[0xbb] = [this]{ op_new();         };
     dispatch_table_[0xbc] = [this]{ op_newarray();    }; dispatch_table_[0xbd] = [this]{ op_anewarray();  };
     dispatch_table_[0xbe] = [this]{ op_arraylength(); };
@@ -280,15 +245,10 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0x34] = [this]{ op_caload();  }; dispatch_table_[0x55] = [this]{ op_castore(); };
     dispatch_table_[0x35] = [this]{ op_saload();  }; dispatch_table_[0x56] = [this]{ op_sastore(); };
 
-    // Exceções e type checks
     dispatch_table_[0xbf] = [this]{ op_athrow();     };
     dispatch_table_[0xc0] = [this]{ op_checkcast();  };
     dispatch_table_[0xc1] = [this]{ op_instanceof(); };
 }
-
-// =============================================================================
-// Loop principal
-// =============================================================================
 
 void Interpreter::execute(const class_info& cls, const method_info& method) {
     const code_attribute* code = findCode(method);
@@ -308,7 +268,7 @@ void Interpreter::execute(const class_info& cls, const method_info& method) {
 
 void Interpreter::run() {
     while (!halted_ && !frame_stack_.empty()) {
-        currentFrame().last_pc = currentFrame().pc; // início da instrução atual
+        currentFrame().last_pc = currentFrame().pc;
         uint8_t opcode = fetchU1();
 
         auto it = dispatch_table_.find(opcode);
@@ -321,30 +281,22 @@ void Interpreter::run() {
         }
 
         try {
-            it->second(); // executa o handler do opcode
+            it->second();
         }
         catch (const JavaException& je) {
-            // Exceção explícita (athrow ou erro interno já convertido).
             if (!dispatchException(frame_stack_, loader_, je.ref, je.class_name))
                 throw std::runtime_error("Exception in thread \"main\" " + je.class_name);
         }
         catch (const std::runtime_error& re) {
-            // Erros internos (divisão por zero, NPE, índice fora...) viram exceções
-            // Java capturáveis. Se a mensagem não for de uma exceção conhecida, é um
-            // erro real da VM e sobe para o main().
             std::string cls = builtinClassForMessage(re.what());
             if (cls.empty())
                 throw;
             int32_t ref = heap_.allocateObject(nullptr, cls);
             if (!dispatchException(frame_stack_, loader_, ref, cls))
-                throw; // não-capturada: mantém a mensagem original para o main()
+                throw;
         }
     }
 }
-
-// =============================================================================
-// Helpers de leitura de bytecode
-// =============================================================================
 
 Frame& Interpreter::currentFrame() {
     return frame_stack_.top();
@@ -372,10 +324,8 @@ int16_t Interpreter::fetchS2() { return static_cast<int16_t>(fetchU2()); }
 int32_t Interpreter::fetchS4() { return static_cast<int32_t>(fetchU4()); }
 
 void Interpreter::branch(int32_t offset) {
-    // offset é relativo ao início da instrução (pc já avançou 1 para o opcode
-    // e mais N para os operandos); ajustamos subtraindo o que foi consumido.
     Frame& f = currentFrame();
-    f.pc += offset - 3; // 3 = 1 (opcode) + 2 (operandos de branch padrão)
+    f.pc += offset - 3;
 }
 
 const code_attribute* Interpreter::findCode(const method_info& method) const {
@@ -385,11 +335,7 @@ const code_attribute* Interpreter::findCode(const method_info& method) const {
     return nullptr;
 }
 
-// =============================================================================
-// Implementação dos opcodes — exemplos que estabelecem o padrão
-// =============================================================================
-
-void Interpreter::op_nop() { /* não faz nada */ }
+void Interpreter::op_nop() {}
 
 void Interpreter::op_aconst_null() {
     currentFrame().push(Value::null());
@@ -500,7 +446,6 @@ void Interpreter::op_iinc() {
 
 void Interpreter::op_return() {
     frame_stack_.pop();
-    // se a pilha ficou vazia, run() encerra naturalmente
 }
 
 void Interpreter::op_ireturn() {
@@ -512,8 +457,7 @@ void Interpreter::op_ireturn() {
 
 void Interpreter::op_goto() {
     int16_t offset = fetchS2();
-    Frame& f = currentFrame();
-    f.pc += offset - 3; // -3 = desfaz o avanço do opcode (1) + dos dois bytes do operando (2)
+    branch(offset);
 }
 void Interpreter::op_ldc() {
     Frame& f = currentFrame();
@@ -523,20 +467,15 @@ void Interpreter::op_ldc() {
     if (entry.tag == CONSTANT_Integer) {
         int32_t val = static_cast<int32_t>(entry.container.Integer.bytes);
         f.push(Value::fromInt(val));
-        std::cout << "[DEBUG] op_ldc leu e empilhou o Integer: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_Float) {
         float val;
         u4 bits = entry.container.Float.bytes;
         memcpy(&val, &bits, sizeof(float));
         f.push(Value::fromFloat(val));
-        std::cout << "[DEBUG] op_ldc leu e empilhou o Float: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_String) {
-        // Empilha o índice desta String no constant pool como "referência".
-        // O texto é resolvido só na hora de imprimir (mesmo constant pool).
         f.push(Value::fromRef(static_cast<int32_t>(idx)));
-        std::cout << "[DEBUG] op_ldc empilhou String (cp #" << static_cast<int>(idx) << ")" << std::endl;
     }
 }
 
@@ -548,19 +487,15 @@ void Interpreter::op_ldc_w() {
     if (entry.tag == CONSTANT_Integer) {
         int32_t val = static_cast<int32_t>(entry.container.Integer.bytes);
         f.push(Value::fromInt(val));
-        std::cout << "[DEBUG] op_ldc_w leu e empilhou o Integer: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_Float) {
         float val;
         u4 bits = entry.container.Float.bytes;
         memcpy(&val, &bits, sizeof(float));
         f.push(Value::fromFloat(val));
-        std::cout << "[DEBUG] op_ldc_w leu e empilhou o Float: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_String) {
-        // Mesmo esquema do op_ldc: empilha o índice do constant pool.
         f.push(Value::fromRef(static_cast<int32_t>(idx)));
-        std::cout << "[DEBUG] op_ldc_w empilhou String (cp #" << static_cast<int>(idx) << ")" << std::endl;
     }
 }
 
@@ -573,7 +508,6 @@ void Interpreter::op_ldc2_w() {
         int64_t val = (static_cast<int64_t>(entry.container.Long.high_bytes) << 32)
                     |  entry.container.Long.low_bytes;
         f.push(Value::fromLong(val));
-        std::cout << "[DEBUG] op_ldc2_w leu e empilhou o Long: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_Double) {
         u8 bits = (static_cast<u8>(entry.container.Double.high_bytes) << 32)
@@ -581,18 +515,15 @@ void Interpreter::op_ldc2_w() {
         double val;
         memcpy(&val, &bits, sizeof(double));
         f.push(Value::fromDouble(val));
-        std::cout << "[DEBUG] op_ldc2_w leu e empilhou o Double: " << val << std::endl;
     }
 }
 
-//ARITMÉTICA PARA LONG(64 BITS)
 void Interpreter::op_ladd() {
     Frame& f = currentFrame();
     int64_t b = f.pop().data.l;
     int64_t a = f.pop().data.l;
     int64_t result = a + b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_ladd: " << a << " + " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lmul() {
@@ -601,7 +532,6 @@ void Interpreter::op_lmul() {
     int64_t a = f.pop().data.l;
     int64_t result = a * b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lmul: " << a << " * " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lsub() {
@@ -610,7 +540,6 @@ void Interpreter::op_lsub() {
     int64_t a = f.pop().data.l;
     int64_t result = a - b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lsub: " << a << " - " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_ldiv() {
@@ -620,7 +549,6 @@ void Interpreter::op_ldiv() {
     if (b == 0) throw std::runtime_error("ArithmeticException: / by zero");
     int64_t result = a / b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_ldiv: " << a << " / " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lrem() {
@@ -630,7 +558,6 @@ void Interpreter::op_lrem() {
     if (b == 0) throw std::runtime_error("ArithmeticException: / by zero");
     int64_t result = a % b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lrem: " << a << " % " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lneg() {
@@ -638,17 +565,14 @@ void Interpreter::op_lneg() {
     int64_t a = f.pop().data.l;
     int64_t result = -a;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lneg: -" << a << " = " << result << std::endl;
 }
 
-//BIT A BIT PARA LONG
 void Interpreter::op_land() {
     Frame& f = currentFrame();
     int64_t b = f.pop().data.l;
     int64_t a = f.pop().data.l;
     int64_t result = a & b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_land: " << a << " & " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lor() {
@@ -657,7 +581,6 @@ void Interpreter::op_lor() {
     int64_t a = f.pop().data.l;
     int64_t result = a | b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lor: " << a << " | " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lxor() {
@@ -666,7 +589,6 @@ void Interpreter::op_lxor() {
     int64_t a = f.pop().data.l;
     int64_t result = a ^ b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lxor: " << a << " ^ " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lshl() {
@@ -675,7 +597,6 @@ void Interpreter::op_lshl() {
     int64_t a = f.pop().data.l;
     int64_t result = a << b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lshl: " << a << " << " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lshr() {
@@ -684,7 +605,6 @@ void Interpreter::op_lshr() {
     int64_t a = f.pop().data.l;
     int64_t result = a >> b;
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lshr: " << a << " >> " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_lushr() {
@@ -693,18 +613,14 @@ void Interpreter::op_lushr() {
     u8      a = static_cast<u8>(f.pop().data.l);
     int64_t result = static_cast<int64_t>(a >> b);
     f.push(Value::fromLong(result));
-    std::cout << "[DEBUG] op_lushr: " << a << " >>> " << b << " = " << result << std::endl;
 }
 
-//ARITMETICA PARA FLOAT E DOUBLE
-// --- FLOAT ---
 void Interpreter::op_fadd() {
     Frame& f = currentFrame();
     float b = f.pop().data.f;
     float a = f.pop().data.f;
     float result = a + b;
     f.push(Value::fromFloat(result));
-    std::cout << "[DEBUG] op_fadd: " << a << " + " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_fsub() {
@@ -713,7 +629,6 @@ void Interpreter::op_fsub() {
     float a = f.pop().data.f;
     float result = a - b;
     f.push(Value::fromFloat(result));
-    std::cout << "[DEBUG] op_fsub: " << a << " - " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_fmul() {
@@ -722,7 +637,6 @@ void Interpreter::op_fmul() {
     float a = f.pop().data.f;
     float result = a * b;
     f.push(Value::fromFloat(result));
-    std::cout << "[DEBUG] op_fmul: " << a << " * " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_fdiv() {
@@ -731,7 +645,6 @@ void Interpreter::op_fdiv() {
     float a = f.pop().data.f;
     float result = a / b;
     f.push(Value::fromFloat(result));
-    std::cout << "[DEBUG] op_fdiv: " << a << " / " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_fneg() {
@@ -739,7 +652,6 @@ void Interpreter::op_fneg() {
     float a = f.pop().data.f;
     float result = -a;
     f.push(Value::fromFloat(result));
-    std::cout << "[DEBUG] op_fneg: -" << a << " = " << result << std::endl;
 }
 
 void Interpreter::op_frem() {
@@ -748,17 +660,14 @@ void Interpreter::op_frem() {
     float a = f.pop().data.f;
     float result = std::fmod(a, b);
     f.push(Value::fromFloat(result));
-    std::cout << "[DEBUG] op_frem: " << a << " % " << b << " = " << result << std::endl;
 }
 
-// --- DOUBLE ---
 void Interpreter::op_dadd() { 
     Frame& f = currentFrame();
     double b = f.pop().data.d;
     double a = f.pop().data.d;
     double result = a + b;
     f.push(Value::fromDouble(result));
-    std::cout << "[DEBUG] op_dadd: " << a << " + " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_dsub() { 
@@ -767,7 +676,6 @@ void Interpreter::op_dsub() {
     double a = f.pop().data.d;
     double result = a - b;
     f.push(Value::fromDouble(result));
-    std::cout << "[DEBUG] op_dsub: " << a << " - " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_dmul() { 
@@ -776,7 +684,6 @@ void Interpreter::op_dmul() {
     double a = f.pop().data.d;
     double result = a * b;
     f.push(Value::fromDouble(result));
-    std::cout << "[DEBUG] op_dmul: " << a << " * " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_ddiv() { 
@@ -785,7 +692,6 @@ void Interpreter::op_ddiv() {
     double a = f.pop().data.d;
     double result = a / b;
     f.push(Value::fromDouble(result));
-    std::cout << "[DEBUG] op_ddiv: " << a << " / " << b << " = " << result << std::endl;
 }
 
 void Interpreter::op_dneg() {
@@ -793,7 +699,6 @@ void Interpreter::op_dneg() {
     double a = f.pop().data.d;
     double result = -a;
     f.push(Value::fromDouble(result));
-    std::cout << "[DEBUG] op_dneg: -" << a << " = " << result << std::endl;
 }
 
 void Interpreter::op_drem() {
@@ -802,17 +707,14 @@ void Interpreter::op_drem() {
     double a = f.pop().data.d;
     double result = std::fmod(a, b);
     f.push(Value::fromDouble(result));
-    std::cout << "[DEBUG] op_drem: " << a << " % " << b << " = " << result << std::endl;
 }
 
-//LCMP, FCMP E DCMP
 void Interpreter::op_lcmp() {
     Frame& f  = currentFrame();
     int64_t b = f.pop().data.l;
     int64_t a = f.pop().data.l;
     int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
     f.push(Value::fromInt(result));
-    std::cout << "[DEBUG] op_lcmp comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
 }
 
 void Interpreter::op_fcmpl() {
@@ -821,12 +723,10 @@ void Interpreter::op_fcmpl() {
     float a  = f.pop().data.f;
     if (std::isnan(a) || std::isnan(b)) {
         f.push(Value::fromInt(-1));
-        std::cout << "[DEBUG] op_fcmpl: NaN detectado -> pilha recebeu: -1" << std::endl;
         return;
     }
     int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
     f.push(Value::fromInt(result));
-    std::cout << "[DEBUG] op_fcmpl comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
 }
 
 void Interpreter::op_fcmpg() {
@@ -835,12 +735,10 @@ void Interpreter::op_fcmpg() {
     float a  = f.pop().data.f;
     if (std::isnan(a) || std::isnan(b)) {
         f.push(Value::fromInt(1));
-        std::cout << "[DEBUG] op_fcmpg: NaN detectado -> pilha recebeu: 1" << std::endl;
         return;
     }
     int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
     f.push(Value::fromInt(result));
-    std::cout << "[DEBUG] op_fcmpg comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
 }
 
 void Interpreter::op_dcmpl() {
@@ -849,12 +747,10 @@ void Interpreter::op_dcmpl() {
     double a = f.pop().data.d;
     if (std::isnan(a) || std::isnan(b)) {
         f.push(Value::fromInt(-1));
-        std::cout << "[DEBUG] op_dcmpl: NaN detectado -> pilha recebeu: -1" << std::endl;
         return;
     }
     int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
     f.push(Value::fromInt(result));
-    std::cout << "[DEBUG] op_dcmpl comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
 }
 
 void Interpreter::op_dcmpg() {
@@ -863,24 +759,12 @@ void Interpreter::op_dcmpg() {
     double a = f.pop().data.d;
     if (std::isnan(a) || std::isnan(b)) {
         f.push(Value::fromInt(1));
-        std::cout << "[DEBUG] op_dcmpg: NaN detectado -> pilha recebeu: 1" << std::endl;
         return;
     }
     int32_t result = (a > b ? 1 : (a < b ? -1 : 0));
     f.push(Value::fromInt(result));
-    std::cout << "[DEBUG] op_dcmpg comparou: " << a << " e " << b << " -> pilha recebeu: " << result << std::endl;
 }
-// Os demais opcodes seguem o mesmo padrão acima.
-// Implemente um a um conforme avançar nas etapas.
 
-// Stubs para opcodes ainda não implementados
-// (substituir pelo corpo real à medida que o projeto avança)
-
-// lload/fload/dload/aload e lstore/fstore/dstore/astore — mesmo padrão de
-// iload/istore acima (Value carrega seu próprio tipo, então push/pop direto
-// do slot funciona para qualquer tipo). Tarefa da Pessoa 3 (load/store de
-// locais); implementado aqui porque sem isso era impossível testar fim-a-fim
-// as conversões e a aritmética float/double/long que dependem de locais.
 void Interpreter::op_lload_0() { Frame& f = currentFrame(); f.push(f.locals[0]); }
 void Interpreter::op_lload_1() { Frame& f = currentFrame(); f.push(f.locals[1]); }
 void Interpreter::op_lload_2() { Frame& f = currentFrame(); f.push(f.locals[2]); }
@@ -952,7 +836,7 @@ void Interpreter::op_ixor() {
 
 void Interpreter::op_ishl() {
     Frame& f = currentFrame();
-    int32_t shift = f.pop().data.i & 0x1f; // JVM usa apenas os 5 bits baixos.
+    int32_t shift = f.pop().data.i & 0x1f;
     int32_t value = f.pop().data.i;
     uint32_t result = static_cast<uint32_t>(value) << shift;
     f.push(Value::fromInt(static_cast<int32_t>(result)));
@@ -960,14 +844,14 @@ void Interpreter::op_ishl() {
 
 void Interpreter::op_ishr() {
     Frame& f = currentFrame();
-    int32_t shift = f.pop().data.i & 0x1f; // Deslocamento aritmetico com sinal.
+    int32_t shift = f.pop().data.i & 0x1f;
     int32_t value = f.pop().data.i;
     f.push(Value::fromInt(value >> shift));
 }
 
 void Interpreter::op_iushr() {
     Frame& f = currentFrame();
-    int32_t shift = f.pop().data.i & 0x1f; // Deslocamento logico sem sinal.
+    int32_t shift = f.pop().data.i & 0x1f;
     uint32_t value = static_cast<uint32_t>(f.pop().data.i);
     f.push(Value::fromInt(static_cast<int32_t>(value >> shift)));
 }
@@ -982,14 +866,12 @@ void requireCategory1(const Value& value, const char* opcode) {
 }
 } // namespace
 
-// pop: ..., value -> ...; valido apenas para valores category 1.
 void Interpreter::op_pop() {
     Frame& f = currentFrame();
     requireCategory1(f.top(), "pop");
     f.pop();
 }
 
-// pop2: remove um category 2 ou dois category 1 consecutivos.
 void Interpreter::op_pop2() {
     Frame& f = currentFrame();
     Value value1 = f.pop();
@@ -1000,7 +882,6 @@ void Interpreter::op_pop2() {
     requireCategory1(value2, "pop2");
 }
 
-// dup: ..., value -> ..., value, value; valido apenas para category 1.
 void Interpreter::op_dup() {
     Frame& f = currentFrame();
     Value value = f.top();
@@ -1008,7 +889,6 @@ void Interpreter::op_dup() {
     f.push(value);
 }
 
-// dup_x1: ..., value2, value1 -> ..., value1, value2, value1.
 void Interpreter::op_dup_x1() {
     Frame& f = currentFrame();
     Value value1 = f.pop();
@@ -1021,7 +901,6 @@ void Interpreter::op_dup_x1() {
     f.push(value1);
 }
 
-// dup_x2 tem duas formas: insere value1 abaixo de dois category 1 ou abaixo de um category 2.
 void Interpreter::op_dup_x2() {
     Frame& f = currentFrame();
     Value value1 = f.pop();
@@ -1044,7 +923,6 @@ void Interpreter::op_dup_x2() {
     f.push(value1);
 }
 
-// dup2: duplica um category 2 ou o par value2/value1 de dois category 1.
 void Interpreter::op_dup2() {
     Frame& f = currentFrame();
     Value value1 = f.pop();
@@ -1063,7 +941,6 @@ void Interpreter::op_dup2() {
     f.push(value1);
 }
 
-// swap: ..., value2, value1 -> ..., value1, value2; ambos devem ser category 1.
 void Interpreter::op_swap() {
     Frame& f = currentFrame();
     Value value1 = f.pop();
@@ -1075,9 +952,6 @@ void Interpreter::op_swap() {
     f.push(value2);
 }
 
-// Conversões f2i/f2l/d2i/d2l seguem a JLS: NaN vira 0 e valores fora da faixa
-// do tipo destino saturam em MIN/MAX em vez de dar overflow indefinido (o que
-// static_cast faria em C++).
 namespace {
 int32_t floatToInt(float v) {
     if (std::isnan(v)) return 0;
@@ -1195,9 +1069,6 @@ void Interpreter::op_i2s() {
     f.push(Value::fromInt(static_cast<int32_t>(static_cast<int16_t>(v))));
 }
 
-// ifeq/ifne/.../ifle — comparam o int do topo da pilha com zero e desviam se
-// a condição for satisfeita. O offset é relativo ao endereço do opcode, então
-// usamos branch() para compensar os 3 bytes (opcode + 2 de operando) já lidos.
 void Interpreter::op_ifeq() {
     Frame& f = currentFrame();
     int16_t offset = fetchS2();
@@ -1234,7 +1105,6 @@ void Interpreter::op_ifle() {
     if (f.pop().data.i <= 0) branch(offset);
 }
 
-// if_icmp* — comparam dois ints desempilhados (a = segundo no topo, b = topo).
 void Interpreter::op_if_icmpeq() {
     Frame& f = currentFrame();
     int16_t offset = fetchS2();
@@ -1283,7 +1153,6 @@ void Interpreter::op_if_icmple() {
     if (a <= b) branch(offset);
 }
 
-// ifnull/ifnonnull — testam a referência do topo contra null (ref == 0).
 void Interpreter::op_ifnull() {
     Frame& f = currentFrame();
     int16_t offset = fetchS2();
@@ -1296,7 +1165,6 @@ void Interpreter::op_ifnonnull() {
     if (!heap_.isNull(f.pop().data.ref)) branch(offset);
 }
 
-// if_acmpeq/if_acmpne — comparam duas referências por igualdade de índice no heap.
 void Interpreter::op_if_acmpeq() {
     Frame& f = currentFrame();
     int16_t offset = fetchS2();
@@ -1313,20 +1181,16 @@ void Interpreter::op_if_acmpne() {
     if (a != b) branch(offset);
 }
 
-// goto_w — igual a goto, mas com offset de 4 bytes (alcance além de 64KB).
 void Interpreter::op_goto_w() {
     int32_t offset = fetchS4();
     Frame& f = currentFrame();
-    f.pc += offset - 5; // -5 = opcode (1) + operando de 4 bytes
+    f.pc += offset - 5;
 }
 
-// tableswitch — salto indexado: se `index` estiver em [low, high], desvia
-// para o offset da tabela correspondente; caso contrário, usa o default.
-// Os offsets são relativos ao endereço do próprio opcode (`start`).
 void Interpreter::op_tableswitch() {
     Frame& f = currentFrame();
-    size_t start = f.pc - 1; // endereço do opcode (fetchU1() já avançou o pc)
-    while (f.pc % 4 != 0) f.pc++; // pula bytes de padding até alinhamento de 4
+    size_t start = f.pc - 1;
+    while (f.pc % 4 != 0) f.pc++;
 
     int32_t def  = fetchS4();
     int32_t low  = fetchS4();
@@ -1338,15 +1202,13 @@ void Interpreter::op_tableswitch() {
     if (index < low || index > high) {
         offset = def;
     } else {
-        f.pc += static_cast<size_t>(index - low) * 4; // pula até a entrada certa
+        f.pc += static_cast<size_t>(index - low) * 4;
         offset = fetchS4();
     }
 
     f.pc = start + static_cast<size_t>(offset);
 }
 
-// lookupswitch — salto por tabela de pares (match, offset); usa default se
-// nenhum match for encontrado.
 void Interpreter::op_lookupswitch() {
     Frame& f = currentFrame();
     size_t start = f.pc - 1;
@@ -1368,9 +1230,7 @@ void Interpreter::op_lookupswitch() {
 
     f.pc = start + static_cast<size_t>(offset);
 }
-// lreturn/freturn/dreturn/areturn — idênticos a ireturn: Value carrega seu
-// próprio tipo, então basta desempilhar o valor, descartar o frame atual e
-// reempilhá-lo no frame do chamador (se houver).
+
 void Interpreter::op_lreturn() {
     Value retval = frame_stack_.top().pop();
     frame_stack_.pop();
@@ -1399,36 +1259,25 @@ void Interpreter::op_areturn() {
         frame_stack_.top().push(retval);
 }
 
-// -----------------------------------------------------------------------------
-// Helpers de invocação de métodos (locais a este arquivo)
-//
-// Cada argumento ocupa um único Value na pilha de operandos deste interpretador
-// (long/double inclusive). Porém, nas variáveis locais, o javac assume que
-// long/double consomem 2 slots — por isso o índice do slot avança conforme a
-// "largura" de cada parâmetro, ainda que apenas um Value seja copiado.
-// -----------------------------------------------------------------------------
 namespace {
 
-// Largura em slots de cada parâmetro do descritor (long/double = 2, resto = 1).
 std::vector<int> parseParamWidths(const std::string& descriptor) {
     std::vector<int> widths;
     size_t i = 1; // pula '('
     while (i < descriptor.size() && descriptor[i] != ')') {
         char c = descriptor[i];
-        if (c == '[') { i++; continue; }          // prefixo de array; a ref é category 1
-        if (c == 'L') {                            // objeto: consome até ';'
+        if (c == '[') { i++; continue; }
+        if (c == 'L') {
             while (i < descriptor.size() && descriptor[i] != ';') i++;
             i++;                                   // pula ';'
             widths.push_back(1);
             continue;
         }
-        widths.push_back((c == 'J' || c == 'D') ? 2 : 1); // long/double = category 2
+        widths.push_back((c == 'J' || c == 'D') ? 2 : 1);
         i++;
     }
     return widths;
 }
-
-// Localiza o atributo Code de um método (mesma lógica de Interpreter::findCode).
 const code_attribute* findCodeOf(const method_info& method) {
     for (const attribute_info& attr : method.attributes)
         if (attr.code_data)
@@ -1436,8 +1285,6 @@ const code_attribute* findCodeOf(const method_info& method) {
     return nullptr;
 }
 
-// Resolve um método percorrendo a classe e suas superclasses. Em caso de
-// sucesso, *decl recebe a classe onde o método foi efetivamente encontrado.
 const method_info* resolveMethod(ClassLoader& loader, const class_info& start,
                                  const std::string& name, const std::string& descriptor,
                                  const class_info** decl) {
@@ -1458,8 +1305,6 @@ const method_info* resolveMethod(ClassLoader& loader, const class_info& start,
     }
 }
 
-// Monta o frame do método chamado a partir dos argumentos já isolados e o
-// empilha. `self` é Value::null() para chamadas estáticas.
 void pushCalleeFrame(FrameStack& fs, const class_info& decl, const method_info& method,
                      const code_attribute* code, const std::vector<Value>& args,
                      const std::vector<int>& widths, bool hasThis, Value self) {
@@ -1480,7 +1325,6 @@ void pushCalleeFrame(FrameStack& fs, const class_info& decl, const method_info& 
     fs.push(std::move(nf));
 }
 
-// Invocação estática: sem receiver. Resolve o método e empilha o frame.
 void invokeStaticMethod(ClassLoader& loader, FrameStack& fs,
                         const std::string& class_name, const std::string& name,
                         const std::string& descriptor) {
@@ -1503,10 +1347,6 @@ void invokeStaticMethod(ClassLoader& loader, FrameStack& fs,
     pushCalleeFrame(fs, *decl, *m, code, args, widths, false, Value::null());
 }
 
-// Invocação de instância (special/virtual/interface). Em virtualDispatch a
-// resolução parte da classe real do receiver no heap; caso contrário, da classe
-// estática do constant pool. Métodos sem corpo (ex.: java/lang/Object.<init> ou
-// nativos) viram no-op — os argumentos e o receiver já foram desempilhados.
 void invokeInstanceMethod(ClassLoader& loader, FrameStack& fs, Heap& heap,
                           const std::string& static_class, const std::string& name,
                           const std::string& descriptor, bool virtualDispatch) {
@@ -1522,7 +1362,6 @@ void invokeInstanceMethod(ClassLoader& loader, FrameStack& fs, Heap& heap,
 
     std::string start_class = static_class;
     if (virtualDispatch) {
-        // Despacho dinâmico: usa a classe concreta do objeto referenciado.
         try { start_class = heap.object(self.data.ref).class_name; } catch (...) {}
     }
 
@@ -1533,14 +1372,13 @@ void invokeInstanceMethod(ClassLoader& loader, FrameStack& fs, Heap& heap,
     const method_info* m = target ? resolveMethod(loader, *target, name, descriptor, &decl) : nullptr;
     const code_attribute* code = m ? findCodeOf(*m) : nullptr;
     if (!m || !code)
-        return; // no-op: construtor de Object, método nativo, etc.
+        return;
 
     pushCalleeFrame(fs, *decl, *m, code, args, widths, true, self);
 }
 
 } // namespace
 
-// invokestatic — invoca um método estático (sem objectref).
 void Interpreter::op_invokestatic() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1554,7 +1392,6 @@ void Interpreter::op_invokestatic() {
     invokeStaticMethod(loader_, frame_stack_, class_name, method_name, descriptor);
 }
 
-// invokespecial — chamadas não-virtuais: <init>, métodos private e super.X().
 void Interpreter::op_invokespecial() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1568,13 +1405,11 @@ void Interpreter::op_invokespecial() {
     invokeInstanceMethod(loader_, frame_stack_, heap_, class_name, method_name, descriptor, false);
 }
 
-// invokeinterface — despacho dinâmico via interface. O operando traz 2 bytes
-// extras (count e um byte zero reservado) além do índice u2.
 void Interpreter::op_invokeinterface() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
-    fetchU1(); // count (nargs+1) — não precisamos, derivamos do descritor
-    fetchU1(); // byte zero reservado
+    fetchU1();
+    fetchU1();
 
     const cp_info& ref  = f.cls->constant_pool[cp_index];
     std::string class_name  = classNameFromConstantPool(*f.cls, ref.container.InterfaceMethodref.class_index);
@@ -1585,7 +1420,6 @@ void Interpreter::op_invokeinterface() {
     invokeInstanceMethod(loader_, frame_stack_, heap_, class_name, method_name, descriptor, true);
 }
 
-// getfield — desempilha o objectref e empilha o valor do campo de instância.
 void Interpreter::op_getfield() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1600,7 +1434,6 @@ void Interpreter::op_getfield() {
     f.push(heap_.getField(objref, field_name));
 }
 
-// putfield — desempilha o valor e o objectref e grava o campo de instância.
 void Interpreter::op_putfield() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1616,8 +1449,6 @@ void Interpreter::op_putfield() {
     heap_.putField(objref, field_name, value);
 }
 
-// getstatic — lê um campo estático e empilha seu valor.
-// Intercepta java/lang/System.out para simular println sem carregar a stdlib.
 void Interpreter::op_getstatic() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1629,16 +1460,12 @@ void Interpreter::op_getstatic() {
     std::string descriptor = utf8FromConstantPool(*f.cls, nat.container.NameAndType.descriptor_index);
 
     if (class_name == "java/lang/System" && field_name == "out") {
-        // O valor empilhado é irrelevante: op_invokevirtual detecta PrintStream
-        // pelo nome da classe no constant pool, não pela referência em si.
         f.push(Value::null());
         return;
     }
 
     std::string key = class_name + "::" + field_name;
     if (!loader_.hasStaticField(key)) {
-        // Campo ainda não inicializado: Java garante defaults antes de <clinit>.
-        // O tipo correto vem do descritor para não corromper a pilha de operandos.
         if (descriptor == "J")
             f.push(Value::fromLong(0));
         else if (descriptor == "F")
@@ -1648,13 +1475,12 @@ void Interpreter::op_getstatic() {
         else if (descriptor[0] == 'L' || descriptor[0] == '[')
             f.push(Value::null());
         else
-            f.push(Value::fromInt(0)); // I, Z, B, C, S
+            f.push(Value::fromInt(0));
         return;
     }
     f.push(loader_.getStaticField(key));
 }
 
-// putstatic — desempilha um valor e o armazena no campo estático correspondente.
 void Interpreter::op_putstatic() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1668,8 +1494,6 @@ void Interpreter::op_putstatic() {
     loader_.setStaticField(class_name + "::" + field_name, val);
 }
 
-// invokevirtual — por enquanto intercepta PrintStream.print/println.
-// Outras chamadas dinâmicas serão implementadas junto com herança/polimorfismo.
 void Interpreter::op_invokevirtual() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -1686,25 +1510,22 @@ void Interpreter::op_invokevirtual() {
         return;
     }
 
-    // Demais chamadas: despacho dinâmico pela classe real do receiver.
     invokeInstanceMethod(loader_, frame_stack_, heap_, class_name, method_name, descriptor, true);
 }
 
-// simulatePrint — imprime o argumento no topo da pilha diretamente em stdout,
-// simulando PrintStream.print/println sem carregar nenhuma classe da stdlib Java.
 void Interpreter::simulatePrint(const std::string& method_name, const std::string& descriptor) {
     Frame& f = currentFrame();
     bool newline = (method_name == "println");
 
     if (descriptor == "()V") {
-        f.pop(); // descarta o receiver (objectref do PrintStream)
+        f.pop();
         if (newline) std::cout << "\n";
         return;
     }
 
     if (descriptor == "(I)V" || descriptor == "(B)V" || descriptor == "(S)V") {
         int32_t val = f.pop().data.i;
-        f.pop(); // receiver
+        f.pop();
         std::cout << val;
     } else if (descriptor == "(J)V") {
         int64_t val = f.pop().data.l;
@@ -1727,8 +1548,8 @@ void Interpreter::simulatePrint(const std::string& method_name, const std::strin
         f.pop();
         std::cout << static_cast<char>(val);
     } else if (descriptor == "(Ljava/lang/String;)V") {
-        int32_t cp_index = f.pop().data.ref; // índice do CONSTANT_String no constant pool
-        f.pop();                             // receiver
+        int32_t cp_index = f.pop().data.ref;
+        f.pop();
         const cp_info& s = f.cls->constant_pool[cp_index];
         std::cout << utf8FromConstantPool(*f.cls, s.container.String.string_index);
     } else {
@@ -1737,40 +1558,30 @@ void Interpreter::simulatePrint(const std::string& method_name, const std::strin
 
     if (newline) std::cout << "\n";
 }
-// new — cria uma instância de classe e empilha sua referência.
-// Operando: índice u2 para um CONSTANT_Class no constant pool.
+
 void Interpreter::op_new() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
 
-    // Resolve o nome da classe e garante que ela esteja carregada.
     std::string class_name = classNameFromConstantPool(*f.cls, cp_index);
     const class_info& cls  = loader_.load(class_name);
 
-    // Aloca o objeto no heap e empilha a referência resultante.
     int32_t ref = heap_.allocateObject(&cls, class_name);
     f.push(Value::fromRef(ref));
 }
 
-// newarray — cria um array de tipo primitivo e empilha sua referência.
-// Operando: byte atype (T_BOOLEAN..T_LONG); o tamanho vem do topo da pilha.
 void Interpreter::op_newarray() {
     Frame& f = currentFrame();
     u1 atype  = fetchU1();
     int32_t length = f.pop().data.i;
-
     int32_t ref = heap_.allocateArray(atype, length);
     f.push(Value::fromRef(ref));
 }
 
-// anewarray — cria um array de referências e empilha sua referência.
-// Operando: índice u2 para um CONSTANT_Class (tipo dos elementos); o tamanho
-// vem do topo da pilha.
 void Interpreter::op_anewarray() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
     std::string element_class = classNameFromConstantPool(*f.cls, cp_index);
-
     int32_t length = f.pop().data.i;
     int32_t ref = heap_.allocateRefArray(element_class, length);
     f.push(Value::fromRef(ref));
@@ -1785,7 +1596,6 @@ void Interpreter::op_arraylength() {
     f.push(Value::fromInt(heap_.arrayLength(ref)));
 }
 
-// iaload — empilha o elemento int de um array. Pilha: ..., arrayref, index → ..., value
 void Interpreter::op_iaload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1795,7 +1605,6 @@ void Interpreter::op_iaload() {
     f.push(Value::fromInt(heap_.getElement(ref, index).data.i));
 }
 
-// iastore — armazena um int em um array. Pilha: ..., arrayref, index, value → ...
 void Interpreter::op_iastore() {
     Frame& f = currentFrame();
     int32_t value = f.pop().data.i;
@@ -1806,7 +1615,6 @@ void Interpreter::op_iastore() {
     heap_.setElement(ref, index, Value::fromInt(value));
 }
 
-// laload/lastore — elementos long.
 void Interpreter::op_laload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1826,7 +1634,6 @@ void Interpreter::op_lastore() {
     heap_.setElement(ref, index, Value::fromLong(value));
 }
 
-// faload/fastore — elementos float.
 void Interpreter::op_faload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1846,7 +1653,6 @@ void Interpreter::op_fastore() {
     heap_.setElement(ref, index, Value::fromFloat(value));
 }
 
-// daload/dastore — elementos double.
 void Interpreter::op_daload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1866,7 +1672,6 @@ void Interpreter::op_dastore() {
     heap_.setElement(ref, index, Value::fromDouble(value));
 }
 
-// aaload — empilha o elemento (referência) de um array de objetos.
 void Interpreter::op_aaload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1876,7 +1681,6 @@ void Interpreter::op_aaload() {
     f.push(heap_.getElement(ref, index));
 }
 
-// aastore — armazena uma referência em um array de objetos.
 void Interpreter::op_aastore() {
     Frame& f = currentFrame();
     Value   value = f.pop();
@@ -1887,8 +1691,6 @@ void Interpreter::op_aastore() {
     heap_.setElement(ref, index, value);
 }
 
-// baload/bastore — arrays de byte e boolean (armazenados como int).
-// baload estende o sinal do byte; bastore trunca o int para 8 bits.
 void Interpreter::op_baload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1908,8 +1710,6 @@ void Interpreter::op_bastore() {
     heap_.setElement(ref, index, Value::fromInt(static_cast<int8_t>(value)));
 }
 
-// caload/castore — arrays de char (16 bits sem sinal).
-// caload faz zero-extension; castore trunca para 16 bits.
 void Interpreter::op_caload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1929,8 +1729,6 @@ void Interpreter::op_castore() {
     heap_.setElement(ref, index, Value::fromInt(static_cast<uint16_t>(value)));
 }
 
-// saload/sastore — arrays de short (16 bits com sinal).
-// saload estende o sinal; sastore trunca para 16 bits.
 void Interpreter::op_saload() {
     Frame& f = currentFrame();
     int32_t index = f.pop().data.i;
@@ -1950,9 +1748,6 @@ void Interpreter::op_sastore() {
     heap_.setElement(ref, index, Value::fromInt(static_cast<int16_t>(value)));
 }
 
-// Helper local: percorre a cadeia de superclasses verificando se `sub` é
-// subtipo de `target`. Usado por checkcast e instanceof. Tudo que herda de
-// java/lang/Object é subtipo dela mesmo quando a stdlib não está no classpath.
 namespace {
 bool isSubtypeOf(ClassLoader& loader, const std::string& sub, const std::string& target) {
     if (sub == target || target == "java/lang/Object")
@@ -1964,11 +1759,11 @@ bool isSubtypeOf(ClassLoader& loader, const std::string& sub, const std::string&
         try {
             cls = &loader.load(current);
         } catch (...) {
-            return false; // classe não encontrada no classpath
+            return false;
         }
 
         if (cls->super_class == 0)
-            return false; // chegamos em java/lang/Object sem casar
+            return false;
 
         std::string super = classNameFromConstantPool(*cls, cls->super_class);
         if (super == target)
@@ -1980,23 +1775,16 @@ bool isSubtypeOf(ClassLoader& loader, const std::string& sub, const std::string&
 }
 } // namespace
 
-// athrow — desempilha a referência da exceção e a propaga.
-// Sem tabela de exception handlers, traduzimos para um erro do host com o
-// nome da classe lançada.
 void Interpreter::op_athrow() {
     Frame& f = currentFrame();
     int32_t ref = f.pop().data.ref;
     if (heap_.isNull(ref)) {
-        // Lançar uma referência null vira NullPointerException.
         int32_t npe = heap_.allocateObject(nullptr, "java/lang/NullPointerException");
         throw JavaException{ npe, "java/lang/NullPointerException" };
     }
-    // Propaga o próprio objeto lançado, para o handler recebê-lo intacto.
     throw JavaException{ ref, heap_.object(ref).class_name };
 }
 
-// checkcast — verifica se o objeto no topo pode ser convertido para a classe
-// alvo. A referência NÃO é desempilhada; null passa em qualquer cast.
 void Interpreter::op_checkcast() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
@@ -2012,8 +1800,6 @@ void Interpreter::op_checkcast() {
                                  " nao pode ser convertido para " + target);
 }
 
-// instanceof — desempilha a referência e empilha 1 se for instância da classe
-// alvo, 0 caso contrário (ou se for null).
 void Interpreter::op_instanceof() {
     Frame& f = currentFrame();
     u2 cp_index = fetchU2();
