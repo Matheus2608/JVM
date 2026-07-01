@@ -9,6 +9,119 @@
 #include <cmath>
 
 // =============================================================================
+// Tratamento de exceções (helpers locais)
+//
+// Uma exceção Java "em trânsito" é representada por JavaException, que carrega a
+// referência do objeto lançado no heap e o nome da sua classe (para casar com os
+// handlers da exception_table). O run() captura isso e chama dispatchException,
+// que procura um handler subindo pelos frames (unwinding).
+// =============================================================================
+namespace {
+
+struct JavaException {
+    int32_t     ref;        // objeto da exceção no heap
+    std::string class_name; // classe da exceção (p/ casar com os catch)
+};
+
+// Hierarquia embutida das exceções da biblioteca padrão — que não conseguimos
+// carregar do classpath. Permite casar catch(RuntimeException), catch(Exception), etc.
+const std::unordered_map<std::string, std::string>& builtinThrowableParents() {
+    static const std::unordered_map<std::string, std::string> m = {
+        {"java/lang/ArithmeticException",             "java/lang/RuntimeException"},
+        {"java/lang/NullPointerException",            "java/lang/RuntimeException"},
+        {"java/lang/ClassCastException",              "java/lang/RuntimeException"},
+        {"java/lang/NegativeArraySizeException",      "java/lang/RuntimeException"},
+        {"java/lang/ArrayStoreException",             "java/lang/RuntimeException"},
+        {"java/lang/IllegalArgumentException",        "java/lang/RuntimeException"},
+        {"java/lang/IllegalStateException",           "java/lang/RuntimeException"},
+        {"java/lang/ArrayIndexOutOfBoundsException",  "java/lang/IndexOutOfBoundsException"},
+        {"java/lang/StringIndexOutOfBoundsException", "java/lang/IndexOutOfBoundsException"},
+        {"java/lang/IndexOutOfBoundsException",       "java/lang/RuntimeException"},
+        {"java/lang/RuntimeException",                "java/lang/Exception"},
+        {"java/lang/Exception",                       "java/lang/Throwable"},
+        {"java/lang/Error",                           "java/lang/Throwable"},
+        {"java/lang/Throwable",                       "java/lang/Object"},
+    };
+    return m;
+}
+
+// Verdadeiro se `sub` é a mesma classe ou subclasse de `target`. Sobe a cadeia
+// de superclasses misturando classes carregáveis (do usuário) com a hierarquia
+// embutida da stdlib — assim uma exceção do usuário que estende RuntimeException
+// ainda casa com catch(Exception).
+bool throwableIsSubtype(ClassLoader& loader, std::string cur, const std::string& target) {
+    if (target == "java/lang/Object" || target == "java/lang/Throwable")
+        return true;
+    for (int guard = 0; guard < 64; ++guard) {
+        if (cur == target)
+            return true;
+        std::string next;
+        try {
+            const class_info& cls = loader.load(cur);
+            if (cls.super_class == 0)
+                return false; // chegou em java/lang/Object
+            next = classNameFromConstantPool(cls, cls.super_class);
+        } catch (...) {
+            auto it = builtinThrowableParents().find(cur);
+            if (it == builtinThrowableParents().end())
+                return false; // classe desconhecida e não carregável
+            next = it->second;
+        }
+        cur = next;
+    }
+    return false;
+}
+
+// Procura um handler para a exceção percorrendo os frames de cima para baixo.
+// Retorna true se achou (o frame do topo fica pronto para retomar no handler_pc);
+// false se a exceção é não-capturada (a pilha de frames terá sido esvaziada).
+bool dispatchException(FrameStack& fs, ClassLoader& loader,
+                       int32_t ref, const std::string& ex_class) {
+    while (!fs.empty()) {
+        Frame& f = fs.top();
+        size_t pc = f.last_pc; // offset da instrução que lançou (ou do invoke)
+
+        for (const exception_table_info& ent : f.code->exception_table) {
+            if (pc < ent.start_pc || pc >= ent.end_pc)
+                continue; // instrução fora da região protegida deste handler
+
+            bool matches = (ent.catch_type == 0); // catch_type 0 = qualquer (finally)
+            if (!matches) {
+                std::string catch_class = classNameFromConstantPool(*f.cls, ent.catch_type);
+                matches = throwableIsSubtype(loader, ex_class, catch_class);
+            }
+            if (matches) {
+                // Ao entrar no handler: limpa a pilha de operandos e deixa só a exceção.
+                while (!f.operand_stack.empty()) f.operand_stack.pop();
+                f.push(Value::fromRef(ref));
+                f.pc = ent.handler_pc;
+                return true;
+            }
+        }
+        fs.pop(); // sem handler neste frame: desempilha e tenta o chamador
+    }
+    return false;
+}
+
+// Traduz as mensagens dos throws internos (std::runtime_error) para a classe de
+// exceção da JVM equivalente, tornando esses erros capturáveis por catch.
+std::string builtinClassForMessage(const std::string& msg) {
+    static const std::pair<const char*, const char*> table[] = {
+        {"ArithmeticException",            "java/lang/ArithmeticException"},
+        {"NullPointerException",           "java/lang/NullPointerException"},
+        {"ArrayIndexOutOfBoundsException", "java/lang/ArrayIndexOutOfBoundsException"},
+        {"NegativeArraySizeException",     "java/lang/NegativeArraySizeException"},
+        {"ClassCastException",             "java/lang/ClassCastException"},
+    };
+    for (const auto& m : table)
+        if (msg.find(m.first) != std::string::npos)
+            return m.second;
+    return "";
+}
+
+} // namespace
+
+// =============================================================================
 // Construtor — monta a dispatch table
 // =============================================================================
 
@@ -195,6 +308,7 @@ void Interpreter::execute(const class_info& cls, const method_info& method) {
 
 void Interpreter::run() {
     while (!halted_ && !frame_stack_.empty()) {
+        currentFrame().last_pc = currentFrame().pc; // início da instrução atual
         uint8_t opcode = fetchU1();
 
         auto it = dispatch_table_.find(opcode);
@@ -206,7 +320,25 @@ void Interpreter::run() {
             throw std::runtime_error(oss.str());
         }
 
-        it->second(); // executa o handler do opcode
+        try {
+            it->second(); // executa o handler do opcode
+        }
+        catch (const JavaException& je) {
+            // Exceção explícita (athrow ou erro interno já convertido).
+            if (!dispatchException(frame_stack_, loader_, je.ref, je.class_name))
+                throw std::runtime_error("Exception in thread \"main\" " + je.class_name);
+        }
+        catch (const std::runtime_error& re) {
+            // Erros internos (divisão por zero, NPE, índice fora...) viram exceções
+            // Java capturáveis. Se a mensagem não for de uma exceção conhecida, é um
+            // erro real da VM e sobe para o main().
+            std::string cls = builtinClassForMessage(re.what());
+            if (cls.empty())
+                throw;
+            int32_t ref = heap_.allocateObject(nullptr, cls);
+            if (!dispatchException(frame_stack_, loader_, ref, cls))
+                throw; // não-capturada: mantém a mensagem original para o main()
+        }
     }
 }
 
@@ -1854,9 +1986,13 @@ bool isSubtypeOf(ClassLoader& loader, const std::string& sub, const std::string&
 void Interpreter::op_athrow() {
     Frame& f = currentFrame();
     int32_t ref = f.pop().data.ref;
-    if (heap_.isNull(ref))
-        throw std::runtime_error("NullPointerException");
-    throw std::runtime_error("Exception lancada: " + heap_.object(ref).class_name);
+    if (heap_.isNull(ref)) {
+        // Lançar uma referência null vira NullPointerException.
+        int32_t npe = heap_.allocateObject(nullptr, "java/lang/NullPointerException");
+        throw JavaException{ npe, "java/lang/NullPointerException" };
+    }
+    // Propaga o próprio objeto lançado, para o handler recebê-lo intacto.
+    throw JavaException{ ref, heap_.object(ref).class_name };
 }
 
 // checkcast — verifica se o objeto no topo pode ser convertido para a classe

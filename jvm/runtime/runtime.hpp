@@ -50,6 +50,8 @@ struct Frame {
     const method_info*    method; // para exceções e depuração
     const code_attribute* code;   // bytecodes, max_stack, max_locals
     size_t                pc;     // PC Register — índice atual no vetor code->code
+    size_t                last_pc = 0; // offset da instrução em execução — usado
+                                       // para casar a exception_table no unwinding
 
     void push(Value v) {
         operand_stack.push(v);
