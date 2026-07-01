@@ -197,6 +197,7 @@ private:
     // -------------------------------------------------------------------------
     void op_new();
     void op_newarray();   void op_anewarray(); void op_arraylength();
+    void op_multianewarray();
     void op_iaload();     void op_iastore();
     void op_laload();     void op_lastore();
     void op_faload();     void op_fastore();
@@ -217,6 +218,13 @@ private:
     // -------------------------------------------------------------------------
     // Intercepta chamadas a PrintStream.print/println e imprime direto em stdout.
     void simulatePrint(const std::string& method_name, const std::string& descriptor);
+
+    // Aloca recursivamente as dimensões de um array multidimensional (multianewarray).
+    // `descriptor` começa com um '[' por dimensão restante (ex.: "[[I");
+    // `counts[dim]` é o tamanho da dimensão atual.
+    int32_t allocateMultiArray(const std::string& descriptor,
+                               const std::vector<int32_t>& counts,
+                               size_t dim);
 };
 
 #endif // JVM_INTERPRETER_HPP

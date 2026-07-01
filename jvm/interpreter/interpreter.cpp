@@ -236,6 +236,7 @@ void Interpreter::buildDispatchTable() {
     dispatch_table_[0xbb] = [this]{ op_new();         };
     dispatch_table_[0xbc] = [this]{ op_newarray();    }; dispatch_table_[0xbd] = [this]{ op_anewarray();  };
     dispatch_table_[0xbe] = [this]{ op_arraylength(); };
+    dispatch_table_[0xc5] = [this]{ op_multianewarray(); };
     dispatch_table_[0x2e] = [this]{ op_iaload();  }; dispatch_table_[0x4f] = [this]{ op_iastore(); };
     dispatch_table_[0x2f] = [this]{ op_laload();  }; dispatch_table_[0x50] = [this]{ op_lastore(); };
     dispatch_table_[0x30] = [this]{ op_faload();  }; dispatch_table_[0x51] = [this]{ op_fastore(); };
@@ -1584,6 +1585,70 @@ void Interpreter::op_anewarray() {
     std::string element_class = classNameFromConstantPool(*f.cls, cp_index);
     int32_t length = f.pop().data.i;
     int32_t ref = heap_.allocateRefArray(element_class, length);
+    f.push(Value::fromRef(ref));
+}
+
+// Traduz o primeiro caractere de um descritor de tipo (JVMS Table 4.3-A) para
+// o código de tipo de elemento usado pelo Heap. Descritores de array ('[') ou
+// de objeto ('L') são tratados como referências.
+static u1 elementTypeFromDescriptor(const std::string& desc) {
+    if (desc.empty()) return HeapArray::T_REFERENCE;
+    switch (desc[0]) {
+        case 'Z': return HeapArray::T_BOOLEAN;
+        case 'C': return HeapArray::T_CHAR;
+        case 'F': return HeapArray::T_FLOAT;
+        case 'D': return HeapArray::T_DOUBLE;
+        case 'B': return HeapArray::T_BYTE;
+        case 'S': return HeapArray::T_SHORT;
+        case 'I': return HeapArray::T_INT;
+        case 'J': return HeapArray::T_LONG;
+        default:  return HeapArray::T_REFERENCE; // '[' ou 'L...;'
+    }
+}
+
+// Aloca recursivamente as dimensões pedidas de um array multidimensional.
+// O elemento de cada nível tem descritor = descriptor sem o primeiro '['.
+int32_t Interpreter::allocateMultiArray(const std::string& descriptor,
+                                        const std::vector<int32_t>& counts,
+                                        size_t dim) {
+    const std::string element_desc = descriptor.substr(1); // descarta um '['
+    int32_t length = counts[dim];
+
+    // Última dimensão solicitada: aloca o array folha sem descer mais.
+    if (dim + 1 == counts.size()) {
+        if (!element_desc.empty() && (element_desc[0] == '[' || element_desc[0] == 'L'))
+            return heap_.allocateRefArray(element_desc, length);
+        return heap_.allocateArray(elementTypeFromDescriptor(element_desc), length);
+    }
+
+    // Dimensão intermediária: array de referências preenchido recursivamente.
+    // Se length for 0, as dimensões internas não são criadas (conforme a JVMS).
+    int32_t ref = heap_.allocateRefArray(element_desc, length);
+    for (int32_t i = 0; i < length; ++i)
+        heap_.setElement(ref, i, Value::fromRef(allocateMultiArray(element_desc, counts, dim + 1)));
+    return ref;
+}
+
+// multianewarray — aloca um array com múltiplas dimensões de uma só vez.
+// Operandos: índice u2 (classe do array, ex.: "[[I") + u1 número de dimensões.
+// Pilha: ..., count1, count2, ..., countN → ..., arrayref
+// count1 (mais no fundo da pilha) é a dimensão mais externa.
+void Interpreter::op_multianewarray() {
+    Frame& f = currentFrame();
+    u2 cp_index   = fetchU2();
+    u1 dimensions = fetchU1();
+
+    if (dimensions == 0)
+        throw std::runtime_error("multianewarray com zero dimensoes");
+
+    std::string descriptor = classNameFromConstantPool(*f.cls, cp_index);
+
+    // Desempilha as contagens: o topo da pilha é a dimensão mais interna pedida.
+    std::vector<int32_t> counts(dimensions);
+    for (int d = static_cast<int>(dimensions) - 1; d >= 0; --d)
+        counts[static_cast<size_t>(d)] = f.pop().data.i;
+
+    int32_t ref = allocateMultiArray(descriptor, counts, 0);
     f.push(Value::fromRef(ref));
 }
 
