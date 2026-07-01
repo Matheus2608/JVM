@@ -401,8 +401,10 @@ void Interpreter::op_ldc() {
         std::cout << "[DEBUG] op_ldc leu e empilhou o Float: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_String) {
-        f.push(Value::fromRef(0));
-        std::cout << "[DEBUG] op_ldc encontrou uma String (Ref=0 temporario)" << std::endl;
+        // Empilha o índice desta String no constant pool como "referência".
+        // O texto é resolvido só na hora de imprimir (mesmo constant pool).
+        f.push(Value::fromRef(static_cast<int32_t>(idx)));
+        std::cout << "[DEBUG] op_ldc empilhou String (cp #" << static_cast<int>(idx) << ")" << std::endl;
     }
 }
 
@@ -424,8 +426,9 @@ void Interpreter::op_ldc_w() {
         std::cout << "[DEBUG] op_ldc_w leu e empilhou o Float: " << val << std::endl;
     }
     else if (entry.tag == CONSTANT_String) {
-        f.push(Value::fromRef(0));
-        std::cout << "[DEBUG] op_ldc_w encontrou uma String (Ref=0 temporario)" << std::endl;
+        // Mesmo esquema do op_ldc: empilha o índice do constant pool.
+        f.push(Value::fromRef(static_cast<int32_t>(idx)));
+        std::cout << "[DEBUG] op_ldc_w empilhou String (cp #" << static_cast<int>(idx) << ")" << std::endl;
     }
 }
 
@@ -1592,9 +1595,10 @@ void Interpreter::simulatePrint(const std::string& method_name, const std::strin
         f.pop();
         std::cout << static_cast<char>(val);
     } else if (descriptor == "(Ljava/lang/String;)V") {
-        f.pop(); // string ref (suporte completo a String ainda pendente)
-        f.pop(); // receiver
-        std::cout << "(String)";
+        int32_t cp_index = f.pop().data.ref; // índice do CONSTANT_String no constant pool
+        f.pop();                             // receiver
+        const cp_info& s = f.cls->constant_pool[cp_index];
+        std::cout << utf8FromConstantPool(*f.cls, s.container.String.string_index);
     } else {
         throw std::runtime_error("simulatePrint: descritor nao suportado: " + descriptor);
     }
